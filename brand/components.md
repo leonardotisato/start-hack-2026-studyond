@@ -1,48 +1,24 @@
 # Components, Layout & Animation
 
+**CSS:** All layout classes are in [`app.css`](app.css)
+**Examples:** [`examples/CardExample.tsx`](examples/CardExample.tsx)
+
 ## Layout
 
 ### Grid Systems
 
-```css
-/* 3-column responsive grid */
-.grid-3-col {
-  @apply grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3;
-}
-
-/* 4-column responsive grid */
-.grid-4-col {
-  @apply grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
-}
-```
+`.grid-3-col` — responsive 3-column grid (1 col mobile, 2 col tablet, 3 col desktop)
+`.grid-4-col` — responsive 4-column grid (1 col mobile, 2 col tablet, 3 col desktop, 4 col xl)
 
 ### App Layout Pattern
 
-```css
-/* Sticky header */
-.header {
-  @apply bg-background sticky top-0 z-30 flex h-16 min-h-16 flex-shrink-0 justify-between;
-}
-
-/* Content scroll area */
-.scroll-area {
-  @apply h-full w-full px-6 lg:px-8;
-}
-
-.scroll-area-content {
-  @apply pt-4 pb-8;
-}
-```
+`.header` — sticky header with flex layout
+`.scroll-area` / `.scroll-area-content` — full-height scroll container with padding
 
 ### Content Width
 
-```css
-/* Narrow content (forms, onboarding) */
-.ds-layout-narrow { @apply md:max-w-3xl; }
-
-/* Wide content (onboarding with preview) */
-.ds-layout-onboarding { @apply md:max-w-3xl xl:max-w-7xl; }
-```
+`.ds-layout-narrow` — max-width for forms
+`.ds-layout-onboarding` — max-width for split layouts
 
 ### Responsive Breakpoints
 
@@ -98,30 +74,13 @@ shadcn/ui button with CVA. Always fully rounded.
 - Image cards: 4:5 portrait aspect ratio
 - Featured cards: 3:2 landscape
 
-```tsx
-<Card className="group overflow-hidden">
-  <div className="aspect-[4/5] overflow-hidden">
-    <img className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-  </div>
-  <CardContent className="p-4">
-    <h3 className="font-medium leading-snug line-clamp-2 transition-colors group-hover:text-primary">
-      Title
-    </h3>
-    <p className="text-sm text-muted-foreground mt-1">Description</p>
-  </CardContent>
-</Card>
-```
+**Example:** `ImageCard` in [`examples/CardExample.tsx`](examples/CardExample.tsx)
 
 ---
 
 ## Dialogs / Sheets
 
-```css
-/* Dialog overlay: subtle blur, no heavy darkening */
-[data-slot='dialog-overlay'] {
-  @apply h-screen w-screen bg-transparent opacity-30 backdrop-blur-3xl transition-all;
-}
-```
+Dialog overlay style (subtle blur, no heavy darkening) is in [`app.css`](app.css).
 
 ---
 
@@ -137,11 +96,7 @@ Use shadcn's sidebar component. Studyond uses a collapsible sidebar with:
 
 ## Badges
 
-```tsx
-<Badge variant="default">Status</Badge>
-<Badge variant="secondary">Category</Badge>
-<Badge variant="outline">Tag</Badge>
-```
+**Example:** `BadgeExamples` in [`examples/CardExample.tsx`](examples/CardExample.tsx)
 
 ---
 
@@ -149,19 +104,14 @@ Use shadcn's sidebar component. Studyond uses a collapsible sidebar with:
 
 **Primary:** Lucide React (in app), Tabler Icons (in website)
 
-```tsx
-import { Search, ArrowRight, Plus } from "lucide-react";
-
-<Search className="size-4" />       {/* 16px — standard */}
-<ArrowRight className="size-5" />   {/* 20px — prominent */}
-```
-
 | Size | Use |
 |------|-----|
 | 12px (`size-3`) | Tiny indicators |
 | 16px (`size-4`) | Standard — buttons, nav, metadata |
 | 20px (`size-5`) | Slightly larger |
 | 24px (`size-6`) | Mobile menu, prominent actions |
+
+**Example:** `IconExamples` in [`examples/CardExample.tsx`](examples/CardExample.tsx)
 
 ---
 

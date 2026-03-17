@@ -17,17 +17,25 @@ Everything you need to reproduce the Studyond look and feel.
 | File | What's inside |
 |------|--------------|
 | [`setup.md`](setup.md) | Tech stack, install commands, shadcn config |
-| [`colors.md`](colors.md) | Full color system — copy-pasteable CSS variables (light + dark) |
+| [`colors.md`](colors.md) | Color system reference (hex table, AI accent docs) |
 | [`typography.md`](typography.md) | Font stack, type scale, header utilities |
 | [`components.md`](components.md) | Layout, components, icons, animation |
 | [`ai-integration.md`](ai-integration.md) | Vercel AI SDK setup, AI visual style classes |
 | [`image-generation.md`](image-generation.md) | Generate brand-consistent images with Gemini |
 
-## Assets
+## Ready-to-Use Files
 
 | File | What |
 |------|------|
+| [`app.css`](app.css) | Complete design system CSS — paste into `src/App.css` |
+| [`components.json`](components.json) | shadcn/ui configuration |
+| [`setup.sh`](setup.sh) | Project setup script |
 | [`studyond.svg`](studyond.svg) | Studyond logo |
+| [`examples/`](examples/) | TSX examples — AI chat, cards, badges, icons |
+
+## Claude Code Skills
+
+See [`/skills`](../skills/) — copy to `~/.claude/skills/` to get slash commands for project setup, component scaffolding, brand review, and image generation.
 
 ## Do's and Don'ts
 

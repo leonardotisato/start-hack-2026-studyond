@@ -18,56 +18,14 @@
 
 ## Install
 
-```bash
-# Create project
-npm create vite@latest my-studyond-app -- --template react-ts
-
-# Install core dependencies
-npm install tailwindcss @tailwindcss/vite
-npm install ai @ai-sdk/anthropic   # or @ai-sdk/openai
-npm install zustand
-npm install lucide-react
-npm install framer-motion           # optional
-
-# Initialize shadcn
-npx shadcn@latest init
-# Choose: New York style, Zinc base color, CSS variables: yes
-```
+**Script:** [`setup.sh`](setup.sh)
 
 ## shadcn Configuration
 
-Your `components.json` should look like this:
-
-```json
-{
-  "style": "new-york",
-  "rsc": false,
-  "tsx": true,
-  "tailwind": {
-    "config": "",
-    "css": "src/App.css",
-    "baseColor": "zinc",
-    "cssVariables": true
-  },
-  "iconLibrary": "lucide",
-  "aliases": {
-    "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui"
-  }
-}
-```
-
-## Recommended Components
-
-```bash
-npx shadcn@latest add button card input dialog badge tabs
-npx shadcn@latest add form select textarea tooltip avatar
-npx shadcn@latest add sidebar sheet dropdown-menu separator
-```
+**Config:** [`components.json`](components.json)
 
 ## Next Steps
 
-1. Copy the CSS variables from [`colors.md`](colors.md) into your `src/App.css`
-2. Add the typography classes from [`typography.md`](typography.md)
+1. Copy [`app.css`](app.css) into your `src/App.css`
+2. Review the type scale in [`typography.md`](typography.md)
 3. Start building with components from [`components.md`](components.md)

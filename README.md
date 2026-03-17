@@ -12,23 +12,27 @@ Welcome! This repository contains everything you need to work on the Studyond ha
 
 Design and prototype an **AI-powered thesis journey** -- a modular, adaptive flow that guides students through their entire thesis process using Studyond's existing ecosystem (topics, supervisors, companies, experts, mentors, AI matching).
 
-Full brief: [`context/challenge.md`](context/challenge.md)
+Full brief: [`context/Challenge Brief.md`](context/Challenge%20Brief.md)
 
-## Context
+## Studyond Brain
 
-The `context/` folder is your knowledge base about Studyond. Use it as a reference -- load it into your AI tools, ask questions against it, or browse it directly.
+The `context/` folder is the **Studyond Brain** -- an interconnected knowledge graph of atomic notes about Studyond. Each note covers one concept and links to related notes via `[[wiki-links]]`.
 
-Start with [`context/index.md`](context/index.md) for a map of what's available.
+**To explore:** Open the `context/` folder in Obsidian and use graph view, or start with [`Studyond Brain.md`](context/Studyond%20Brain.md).
 
-| File | What's inside |
-|------|--------------|
-| [`challenge.md`](context/challenge.md) | The hackathon brief, what to build, evaluation |
-| [`studyond-overview.md`](context/studyond-overview.md) | Company, team, vision, competitive positioning |
-| [`platform.md`](context/platform.md) | Current features, data model, what exists today |
-| [`thesis-journey.md`](context/thesis-journey.md) | The thesis process end-to-end, pain points, opportunity |
-| [`audiences.md`](context/audiences.md) | Students, companies, universities: needs and motivations |
-| [`brand.md`](context/brand.md) | Voice, tone, design language, visual identity |
-| [`evidence.md`](context/evidence.md) | Research, hiring science, competitive landscape |
+**Key entry points:**
+
+| Note                                                           | What's inside                                  |
+| -------------------------------------------------------------- | ---------------------------------------------- |
+| [`Studyond Brain.md`](context/Studyond%20Brain.md)             | Map of Content -- start here                   |
+| [`Challenge Brief.md`](context/Challenge%20Brief.md)           | The hackathon brief, what to build             |
+| [`Opportunity Space.md`](context/Opportunity%20Space.md)       | What doesn't exist yet -- where to build       |
+| [`Thesis Journey.md`](context/Thesis%20Journey.md)             | The 5-stage thesis process and building blocks |
+| [`Studyond.md`](context/Studyond.md)                           | Company overview                               |
+| [`Platform Overview.md`](context/Platform%20Overview.md)       | Current features and capabilities              |
+| [`Data Model.md`](context/Data%20Model.md)                     | Entities and relationships                     |
+| [`Students.md`](context/Students.md)                           | Primary audience profile                       |
+| [`Editorial Minimalism.md`](context/Editorial%20Minimalism.md) | Design philosophy                              |
 
 ## Brand & UI
 
@@ -36,25 +40,44 @@ The `brand/` folder contains assets and references for building on-brand interfa
 
 Start with [`brand/README.md`](brand/README.md) for an overview, then grab what you need:
 
-| File | What's inside |
-|------|--------------|
-| [`setup.md`](brand/setup.md) | Tech stack, install commands, shadcn config |
-| [`colors.md`](brand/colors.md) | Copy-pasteable CSS variables (light + dark mode) |
-| [`typography.md`](brand/typography.md) | Font stack, type scale classes |
-| [`components.md`](brand/components.md) | Layout, components, icons, animation |
-| [`ai-integration.md`](brand/ai-integration.md) | Vercel AI SDK setup, AI visual style |
-| [`image-generation.md`](brand/image-generation.md) | Generate brand-consistent images with Gemini |
-| [`studyond.svg`](brand/studyond.svg) | Logo |
+| File                                               | What's inside                                    |
+| -------------------------------------------------- | ------------------------------------------------ |
+| [`setup.md`](brand/setup.md)                       | Tech stack, install commands, shadcn config      |
+| [`colors.md`](brand/colors.md)                     | Copy-pasteable CSS variables (light + dark mode) |
+| [`typography.md`](brand/typography.md)             | Font stack, type scale classes                   |
+| [`components.md`](brand/components.md)             | Layout, components, icons, animation             |
+| [`ai-integration.md`](brand/ai-integration.md)     | Vercel AI SDK setup, AI visual style             |
+| [`image-generation.md`](brand/image-generation.md) | Generate brand-consistent images with Gemini     |
+| [`studyond.svg`](brand/studyond.svg)               | Logo                                             |
 
-## Using the Context with AI Tools
+## Using the Brain with AI Tools
 
-These files are designed to work as LLM context. Some ways to use them:
+The atomic notes are designed for LLM context. Each note is self-contained but richly linked:
 
-- **Claude Code / Cursor / Windsurf:** Open this repo and your AI assistant can read and reference the context files directly
-- **ChatGPT / Claude chat:** Copy-paste relevant files into your conversation
-- **Custom setup:** Load the files into any RAG system or context window
+- **Obsidian:** Open `context/` as a vault. Use graph view to explore connections.
+- **Claude Code / Cursor / Windsurf:** Open this repo -- your AI assistant can read and navigate the notes via wiki-links
+- **ChatGPT / Claude chat:** Copy-paste individual notes (they're small and focused) or start with `Studyond Brain.md`
+- **RAG / custom setup:** Each note is a clean, atomic chunk with consistent frontmatter tags for filtering
+- **MCP server:** Expose the brain as a local tool server for any MCP-compatible client (see below)
 
-The `index.md` file acts as a routing layer -- an AI assistant can read it first to understand what's available, then pull specific files as needed.
+### Optional: Expose as a local MCP server
+
+If you want your LLM to query the Studyond Brain through [Model Context Protocol](https://modelcontextprotocol.io), the fastest way is the official filesystem server. Add this to your MCP client config (e.g. `claude_desktop_config.json` or `.claude/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "studyond-brain": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./context"]
+    }
+  }
+}
+```
+
+This gives your LLM `read_file`, `list_directory`, and `search_files` tools scoped to the `context/` folder. It can navigate `[[wiki-links]]` by reading referenced notes.
+
+For a richer experience, you could build a small custom MCP server (~100 lines) that parses the wiki-links and frontmatter tags, exposing tools like `get_note(name)`, `get_linked_notes(name)`, or `list_by_tag(tag)` -- letting the LLM traverse the knowledge graph intentionally rather than guessing filenames.
 
 ---
 
