@@ -14,6 +14,9 @@ Thumbs.db
 
 # Node (in case anyone adds dependencies)
 node_modules/
+dist/
+coverage/
+*.tsbuildinfo
 
 # Environment
 .env
