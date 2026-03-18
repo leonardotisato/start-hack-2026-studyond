@@ -22,4 +22,8 @@ An AI agent that analyzes the target role and company to help students prepare f
 
 ## 6. Shared Planning Space
 
-A collaborative workspace where student teams can co-plan semester schedules, group projects, and study sessions. Features include shared calendars, task boards, document collaboration, and integration with university course catalogs. Designed to reduce coordination overhead and keep groups aligned on deadlines and deliverables.
+A collaborative workspace where student teams can co-plan semester schedules, group projects, and study sessions. For thesis students, it also serves as a personal progress tracker with milestone planning, writing progress monitoring, and deadline alerts. Features include shared calendars, task boards, document collaboration, and integration with university course catalogs. Designed to reduce coordination overhead and keep groups aligned on deadlines and deliverables.
+
+## 7. Thesis Review Agent
+
+An agent that reviews the student's thesis draft and provides structured feedback on argumentation, clarity, and completeness. It can also process supervisor or peer feedback (from comments, emails, or annotated PDFs), extract actionable items, categorize them by priority and section, and create a checklist. Combines AI-generated critique with external feedback management.
