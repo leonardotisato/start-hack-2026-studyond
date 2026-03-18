@@ -27,3 +27,21 @@ A collaborative workspace where student teams can co-plan semester schedules, gr
 ## 7. Thesis Review Agent
 
 An agent that reviews the student's thesis draft and provides structured feedback on argumentation, clarity, and completeness. It can also process supervisor or peer feedback (from comments, emails, or annotated PDFs), extract actionable items, categorize them by priority and section, and create a checklist. Combines AI-generated critique with external feedback management.
+
+## 8. Thesis GPS (from tutor feedback)
+
+A guided, end-to-end thesis navigation system that accompanies the student from topic selection all the way to final delivery. The core concept is a **dynamic directed graph** (not just a progress bar) that visualizes the thesis journey as a pipeline of steps.
+
+### Core Mechanics
+
+- **Steps as bottlenecks**: Each node in the graph is a milestone (e.g., "Topic Approved", "Literature Review Complete", "Methodology Defined", "First Draft"). A student cannot advance to the next node until prerequisites are satisfied — enforcing a structured progression.
+- **Branching paths**: The graph represents multiple possible routes forward. For example, after "Literature Review", one path might lead through "Quantitative Analysis" while another suggests "Qualitative Approach". These branches are suggestions the agent proposes based on the student's context.
+- **Proactive agent**: The agent doesn't just wait — it monitors progress, detects stalls, and proactively intervenes. If a student is stuck on a step for too long, it suggests how to unblock. If new information changes the best path forward, it restructures the graph and explains why.
+- **Interactive**: The student can chat with the agent to ask "what should I do next?", "why is this step required?", or "can I skip this?". The agent responds with reasoning grounded in the student's specific thesis and timeline.
+
+### Graph Behavior
+
+- The graph adapts over time: completed nodes turn green, the current node pulses, future nodes show estimated dates.
+- When the agent proposes a path change, both the old and new paths are visible so the student understands the trade-off.
+- Blocked paths (e.g., missing supervisor approval) are visually distinct, with clear instructions on how to unblock.
+- The student can zoom into any node to see sub-tasks, resources, and the sub-agent responsible for that phase.
