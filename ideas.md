@@ -16,6 +16,10 @@ A matching engine that connects students with alumni, mentors, and professionals
 
 An AI-powered research assistant for students already working on their thesis. Given the thesis topic and current progress, it searches for relevant academic papers, YouTube tutorials, blog posts, and datasets across the web. It helps students deepen their work by surfacing specific resources they can immediately use — not topic discovery, but targeted resource hunting for an ongoing project.
 
-## 5. Shared Planning Space
+## 5. Interview Prep Coach
+
+An AI agent that analyzes the target role and company to help students prepare for interviews. It identifies key topics the student should know, generates plausible behavioral and technical questions, and produces a comprehensive preparation guide covering expected knowledge areas, common question patterns, and suggested answer strategies.
+
+## 6. Shared Planning Space
 
 A collaborative workspace where student teams can co-plan semester schedules, group projects, and study sessions. Features include shared calendars, task boards, document collaboration, and integration with university course catalogs. Designed to reduce coordination overhead and keep groups aligned on deadlines and deliverables.
