@@ -14,7 +14,7 @@ A matching engine that connects students with alumni, mentors, and professionals
 
 ## 4. Thesis Research Agent
 
-An AI-powered research assistant that helps students discover relevant thesis topics, find academic papers, and identify potential supervisors. It cross-references the university's active research areas, available datasets, and company-sponsored projects to suggest thesis opportunities that align with the student's interests and career direction.
+An AI-powered research assistant for students already working on their thesis. Given the thesis topic and current progress, it searches for relevant academic papers, YouTube tutorials, blog posts, and datasets across the web. It helps students deepen their work by surfacing specific resources they can immediately use — not topic discovery, but targeted resource hunting for an ongoing project.
 
 ## 5. Shared Planning Space
 
