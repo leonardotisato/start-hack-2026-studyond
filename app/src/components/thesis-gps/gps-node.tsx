@@ -3,71 +3,90 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { GpsNodeState } from "@/types/gps";
 
-const STATE_STYLES: Record<GpsNodeState, { bg: string; border: string; text: string; pulse?: boolean }> = {
-  completed: { bg: "#22c55e", border: "#16a34a", text: "#fff" },
-  active: { bg: "#3b82f6", border: "#2563eb", text: "#fff", pulse: true },
-  upcoming: { bg: "#f3f4f6", border: "#d1d5db", text: "#374151" },
-  blocked: { bg: "#ef4444", border: "#dc2626", text: "#fff" },
-};
-
 export interface GpsNodeData {
   label: string;
   state: GpsNodeState;
   description?: string;
+  estimatedDate?: string;
   subtasks?: string[];
+  isProposed?: boolean;
   isProposalAdd?: boolean;
   isProposalRemove?: boolean;
   isProposalUpdate?: boolean;
+  [key: string]: unknown;
 }
 
+const STATE_STYLES: Record<GpsNodeState, { bg: string; border: string; text: string; dot: string }> = {
+  completed: {
+    bg: "bg-emerald-50",
+    border: "border-emerald-400",
+    text: "text-emerald-800",
+    dot: "bg-emerald-500",
+  },
+  active: {
+    bg: "bg-blue-50",
+    border: "border-blue-500 shadow-md shadow-blue-200",
+    text: "text-blue-800",
+    dot: "bg-blue-500 animate-pulse",
+  },
+  upcoming: {
+    bg: "bg-gray-50",
+    border: "border-gray-300",
+    text: "text-gray-500",
+    dot: "bg-gray-300",
+  },
+  blocked: {
+    bg: "bg-red-50",
+    border: "border-red-400",
+    text: "text-red-700",
+    dot: "bg-red-500",
+  },
+};
+
 export function GpsNodeComponent({ data }: NodeProps) {
-  const nodeData = data as unknown as GpsNodeData;
+  const nodeData = data as GpsNodeData;
   const style = STATE_STYLES[nodeData.state] ?? STATE_STYLES.upcoming;
 
-  let opacity = 1;
-  let outline = "none";
+  let proposalOutline = "";
+  let opacity = "";
   if (nodeData.isProposalRemove) {
-    opacity = 0.4;
-    outline = "2px dashed #ef4444";
+    proposalOutline = "outline outline-2 outline-red-500 outline-dashed";
+    opacity = "opacity-40";
   } else if (nodeData.isProposalAdd) {
-    outline = "2px dashed #22c55e";
+    proposalOutline = "outline outline-2 outline-green-500 outline-dashed";
   } else if (nodeData.isProposalUpdate) {
-    outline = "2px dashed #f59e0b";
+    proposalOutline = "outline outline-2 outline-amber-500 outline-dashed";
+  } else if (nodeData.isProposed) {
+    proposalOutline = "border-dashed opacity-80";
   }
 
   return (
     <div
-      style={{
-        background: style.bg,
-        border: `2px solid ${style.border}`,
-        borderRadius: "10px",
-        padding: "10px 16px",
-        color: style.text,
-        minWidth: 140,
-        maxWidth: 200,
-        textAlign: "center",
-        opacity,
-        outline,
-        outlineOffset: "3px",
-        boxShadow: style.pulse ? `0 0 0 4px ${style.bg}33` : undefined,
-      }}
-      className={style.pulse ? "animate-pulse" : ""}
+      className={`
+        px-4 py-3 rounded-lg border-2 min-w-[160px] max-w-[200px] cursor-pointer
+        transition-all duration-200 hover:scale-105 hover:shadow-lg
+        ${style.bg} ${style.border}
+        ${proposalOutline} ${opacity}
+      `}
     >
-      <Handle type="target" position={Position.Left} style={{ background: style.border }} />
-      <div style={{ fontWeight: 600, fontSize: "13px", marginBottom: nodeData.description ? 4 : 0 }}>
-        {nodeData.label}
+      <Handle type="target" position={Position.Left} className="!bg-gray-400 !w-2 !h-2" />
+
+      <div className="flex items-center gap-2 mb-1">
+        <div className={`w-2.5 h-2.5 rounded-full ${style.dot}`} />
+        <span className={`text-sm font-semibold ${style.text}`}>{nodeData.label}</span>
       </div>
-      {nodeData.description && (
-        <div style={{ fontSize: "11px", opacity: 0.85 }}>{nodeData.description}</div>
+
+      {nodeData.estimatedDate && (
+        <p className="text-xs text-muted-foreground">{nodeData.estimatedDate}</p>
       )}
-      {nodeData.subtasks && nodeData.subtasks.length > 0 && (
-        <div style={{ fontSize: "10px", opacity: 0.7, marginTop: 4, textAlign: "left" }}>
-          {nodeData.subtasks.map((t, i) => (
-            <div key={i}>• {t}</div>
-          ))}
-        </div>
+
+      {(nodeData.isProposed || nodeData.isProposalAdd) && (
+        <span className="text-[10px] font-medium text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded mt-1 inline-block">
+          proposed
+        </span>
       )}
-      <Handle type="source" position={Position.Right} style={{ background: style.border }} />
+
+      <Handle type="source" position={Position.Right} className="!bg-gray-400 !w-2 !h-2" />
     </div>
   );
 }

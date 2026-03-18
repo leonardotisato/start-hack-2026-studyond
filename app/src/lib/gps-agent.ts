@@ -4,6 +4,33 @@ import type { ThesisProject, Student, Topic, Supervisor } from "@/types";
 
 const client = new Anthropic();
 
+const INIT_SYSTEM_PROMPT = `You are a Thesis GPS agent that creates an initial thesis pipeline graph based on a professor's instructions.
+
+You receive:
+- A professor's prompt describing the thesis structure, milestones, and requirements
+- The student's project context (topic, skills, current state)
+
+Your job is to create a complete thesis pipeline graph. You MUST respond with valid JSON matching this exact structure:
+
+{
+  "graph": {
+    "nodes": [{ "id": "string", "label": "string", "state": "upcoming" | "active" | "completed", "description": "string", "estimatedDate": "YYYY-MM-DD", "subtasks": ["string"] }],
+    "edges": [{ "id": "string", "source": "string", "target": "string", "label": "string" }]
+  },
+  "message": "Your explanation of the graph structure to the student."
+}
+
+Rules:
+- Create 6-12 nodes based on the professor's instructions
+- The first uncompleted node should be "active", earlier ones "completed", later ones "upcoming"
+- Edges define the dependency order — a node's dependencies must be completed before it can become active
+- You can create branching paths where appropriate (e.g., parallel workstreams)
+- Each node should have a clear description and relevant subtasks
+- Use realistic node IDs (kebab-case, descriptive)
+- The message should welcome the student and explain the journey ahead
+
+Respond with ONLY the JSON object, no markdown fences, no extra text.`;
+
 const SYSTEM_PROMPT = `You are a Thesis GPS agent — a proactive academic advisor that guides students through their thesis journey.
 
 You receive:
@@ -115,6 +142,75 @@ export async function runGpsAgent(ctx: AgentContext): Promise<GpsProposal> {
     .join("");
 
   return parseProposal(text);
+}
+
+interface InitContext {
+  professorPrompt: string;
+  project: ThesisProject;
+  student?: Student | null;
+  topic?: Topic | null;
+  supervisor?: Supervisor | null;
+}
+
+function buildInitPrompt(ctx: InitContext): string {
+  const parts: string[] = [];
+
+  parts.push("## Professor's Instructions");
+  parts.push(ctx.professorPrompt);
+
+  parts.push("\n## Project Context");
+  parts.push(`- Title: ${ctx.project.title}`);
+  parts.push(`- State: ${ctx.project.state}`);
+  if (ctx.project.description) parts.push(`- Description: ${ctx.project.description}`);
+  if (ctx.project.motivation) parts.push(`- Motivation: ${ctx.project.motivation}`);
+
+  if (ctx.student) {
+    parts.push(`\n## Student`);
+    parts.push(`- Name: ${ctx.student.firstName} ${ctx.student.lastName}`);
+    parts.push(`- Degree: ${ctx.student.degree}`);
+    parts.push(`- Skills: ${ctx.student.skills.join(", ")}`);
+  }
+
+  if (ctx.topic) {
+    parts.push(`\n## Topic`);
+    parts.push(`- Title: ${ctx.topic.title}`);
+    parts.push(`- Description: ${ctx.topic.description}`);
+  }
+
+  if (ctx.supervisor) {
+    parts.push(`\n## Supervisor`);
+    parts.push(`- Name: ${ctx.supervisor.firstName} ${ctx.supervisor.lastName}`);
+    parts.push(`- Research Interests: ${ctx.supervisor.researchInterests.join(", ")}`);
+  }
+
+  return parts.join("\n");
+}
+
+export async function initGpsGraph(ctx: InitContext): Promise<{ graph: GpsGraph; message: string }> {
+  const userPrompt = buildInitPrompt(ctx);
+
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 4096,
+    system: INIT_SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userPrompt }],
+  });
+
+  const text = response.content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+
+  const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+  const parsed = JSON.parse(cleaned);
+
+  return {
+    graph: {
+      nodes: parsed.graph?.nodes ?? [],
+      edges: parsed.graph?.edges ?? [],
+    },
+    message: parsed.message ?? "Your thesis graph has been created.",
+  };
 }
 
 export function applyProposal(graph: GpsGraph, proposal: GpsProposal): GpsGraph {

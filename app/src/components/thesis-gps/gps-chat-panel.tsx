@@ -1,99 +1,114 @@
 "use client";
 
-import { useState } from "react";
-import type { GpsGraph, GpsProposal } from "@/types/gps";
+import { useState, useRef, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 interface ChatMessage {
   role: "user" | "agent";
-  text: string;
+  content: string;
+  hasProposal?: boolean;
 }
 
 interface GpsChatPanelProps {
-  projectId: string;
-  graph: GpsGraph;
-  onProposal: (proposal: GpsProposal) => void;
+  messages: ChatMessage[];
+  onSend: (message: string) => void;
+  isLoading: boolean;
+  pendingProposal: boolean;
+  onAcceptProposal: () => void;
+  onRejectProposal: () => void;
 }
 
-export function GpsChatPanel({ projectId, graph, onProposal }: GpsChatPanelProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export function GpsChatPanel({
+  messages,
+  onSend,
+  isLoading,
+  pendingProposal,
+  onAcceptProposal,
+  onRejectProposal,
+}: GpsChatPanelProps) {
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  async function send() {
-    const text = input.trim();
-    if (!text || loading) return;
-
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", text }]);
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/thesis-gps", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ graph, projectId, userMessage: text }),
-      });
-
-      if (!res.ok) throw new Error("Failed to get response");
-
-      const data = await res.json();
-      const proposal: GpsProposal = data.proposal;
-      setMessages((prev) => [...prev, { role: "agent", text: proposal.message }]);
-      onProposal(proposal);
-    } catch {
-      setMessages((prev) => [...prev, { role: "agent", text: "Sorry, something went wrong. Please try again." }]);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
+  }, [messages]);
+
+  function handleSubmit() {
+    const trimmed = input.trim();
+    if (!trimmed || isLoading) return;
+    onSend(trimmed);
+    setInput("");
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <h3 className="font-semibold text-sm px-4 py-3 border-b">Chat with Thesis GPS</h3>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            Ask the GPS agent about your thesis journey — next steps, blockers, or advice.
-          </p>
-        )}
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`text-sm rounded-lg px-3 py-2 max-w-[85%] ${
-              msg.role === "user"
-                ? "ml-auto bg-primary text-primary-foreground"
-                : "bg-muted text-foreground"
-            }`}
-          >
-            {msg.text}
-          </div>
-        ))}
-        {loading && (
-          <div className="bg-muted text-muted-foreground text-sm rounded-lg px-3 py-2 max-w-[85%] animate-pulse">
-            Thinking...
-          </div>
-        )}
+    <div className="flex flex-col h-full border rounded-lg bg-background">
+      <div className="px-4 py-3 border-b">
+        <h3 className="font-semibold">Thesis GPS Agent</h3>
+        <p className="text-xs text-muted-foreground">Ask questions or request changes to your graph</p>
       </div>
 
-      <div className="border-t p-3 flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Ask about your thesis..."
-          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          disabled={loading}
-        />
-        <button
-          onClick={send}
-          disabled={loading || !input.trim()}
-          className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition disabled:opacity-50"
-        >
-          Send
-        </button>
+      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <div className="space-y-4">
+          {messages.map((msg, i) => (
+            <div key={i}>
+              <div
+                className={`rounded-lg px-3 py-2 text-sm ${
+                  msg.role === "user"
+                    ? "bg-primary text-primary-foreground ml-8"
+                    : "bg-muted mr-8"
+                }`}
+              >
+                {msg.content}
+              </div>
+              {msg.hasProposal && pendingProposal && i === messages.length - 1 && (
+                <div className="flex gap-2 mt-2 mr-8">
+                  <Button size="sm" onClick={onAcceptProposal}>
+                    Accept changes
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={onRejectProposal}>
+                    Reject
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
+          {isLoading && (
+            <div className="bg-muted rounded-lg px-3 py-2 text-sm mr-8 animate-pulse">
+              Thinking...
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      <Separator />
+
+      <div className="p-3">
+        <div className="flex gap-2">
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask the agent..."
+            className="min-h-[40px] max-h-[120px] resize-none text-sm"
+            rows={1}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+          />
+          <Button onClick={handleSubmit} disabled={isLoading || !input.trim()} className="shrink-0">
+            Send
+          </Button>
+        </div>
       </div>
     </div>
   );
 }
+
+export type { ChatMessage };

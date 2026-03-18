@@ -53,3 +53,15 @@ export interface GpsAgentRequest {
 export interface GpsAgentResponse {
   proposal: GpsProposal;
 }
+
+// -- Init request (professor prompt → initial graph) --
+
+export interface GpsInitRequest {
+  projectId: string;
+  professorPrompt: string;
+}
+
+export interface GpsInitResponse {
+  graph: GpsGraph;
+  message: string;
+}

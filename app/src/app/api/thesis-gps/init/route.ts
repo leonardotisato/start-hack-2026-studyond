@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runGpsAgent } from "@/lib/gps-agent";
-import { mockAgentProposal } from "@/lib/gps-mock";
+import { initGpsGraph } from "@/lib/gps-agent";
+import { mockInitGraph } from "@/lib/gps-mock";
 import { getProject, getStudent, getTopic, getSupervisor } from "@/lib/data";
-import { buildDefaultGraph } from "@/lib/gps-defaults";
-import type { GpsAgentRequest, GpsAgentResponse } from "@/types/gps";
+import type { GpsInitResponse } from "@/types/gps";
 
 export async function POST(req: NextRequest) {
-  const body: GpsAgentRequest = await req.json();
-  const { graph, projectId, userMessage } = body;
+  const body = await req.json();
+  const { projectId, professorPrompt } = body;
 
   const project = await getProject(projectId);
   if (!project) {
@@ -22,25 +21,21 @@ export async function POST(req: NextRequest) {
       : null,
   ]);
 
-  const currentGraph =
-    graph.nodes.length > 0 ? graph : buildDefaultGraph(project.state);
-
   try {
-    const proposal = await runGpsAgent({
-      graph: currentGraph,
+    const result = await initGpsGraph({
+      professorPrompt,
       project,
       student,
       topic,
       supervisor,
-      userMessage,
     });
 
-    const response: GpsAgentResponse = { proposal };
+    const response: GpsInitResponse = result;
     return NextResponse.json(response);
   } catch (err: unknown) {
-    console.error("GPS agent error, falling back to mock:", err instanceof Error ? err.message : err);
-    const proposal = mockAgentProposal(userMessage ?? "");
-    const response: GpsAgentResponse = { proposal };
+    console.error("GPS init error, falling back to mock:", err instanceof Error ? err.message : err);
+    const result = mockInitGraph(professorPrompt);
+    const response: GpsInitResponse = result;
     return NextResponse.json(response);
   }
 }
