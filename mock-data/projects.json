@@ -50,6 +50,7 @@
     "description": "Investigating privacy-preserving machine learning approaches for mobile network resource allocation at Swisscom.",
     "motivation": "I am fascinated by the challenge of training ML models without centralizing sensitive user data and see Swiss telecom as the ideal testing ground.",
     "state": "applied",
+    "imageUrl": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&h=450&fit=crop",
     "studentId": "student-01",
     "topicId": "topic-07",
     "companyId": "company-04",
@@ -58,6 +59,58 @@
     "expertIds": [],
     "createdAt": "2026-02-10T11:00:00Z",
     "updatedAt": "2026-02-18T16:45:00Z"
+  },
+  {
+    "id": "project-16",
+    "title": "Real-Time Anomaly Detection in Kubernetes Clusters",
+    "description": "Designing an ML-based monitoring system that detects anomalous resource consumption and potential security breaches in production Kubernetes environments using time-series analysis and graph neural networks.",
+    "motivation": "My experience with distributed systems at Google Zurich showed me how critical proactive anomaly detection is for maintaining reliable cloud infrastructure.",
+    "state": "in_progress",
+    "imageUrl": "https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=800&h=450&fit=crop",
+    "studentId": "student-01",
+    "topicId": null,
+    "companyId": null,
+    "universityId": "uni-01",
+    "supervisorIds": [
+      "supervisor-01"
+    ],
+    "expertIds": [],
+    "createdAt": "2025-11-01T09:00:00Z",
+    "updatedAt": "2026-03-15T10:30:00Z"
+  },
+  {
+    "id": "project-17",
+    "title": "Efficient Inference Engine for On-Device Large Language Models",
+    "description": "Built a custom inference runtime targeting Apple Silicon and edge GPUs that achieves 2.3× faster token generation compared to standard ONNX Runtime through operator fusion, quantization-aware scheduling, and memory-mapped weight loading.",
+    "motivation": "As LLMs move to edge devices, I wanted to push the boundaries of what is achievable in latency and memory footprint without sacrificing output quality.",
+    "state": "completed",
+    "imageUrl": "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=450&fit=crop",
+    "studentId": "student-01",
+    "topicId": null,
+    "companyId": null,
+    "universityId": "uni-01",
+    "supervisorIds": [
+      "supervisor-02"
+    ],
+    "expertIds": [],
+    "createdAt": "2025-06-15T08:00:00Z",
+    "updatedAt": "2025-12-20T16:00:00Z"
+  },
+  {
+    "id": "project-18",
+    "title": "Privacy-Aware Recommendation System for Academic Collaboration",
+    "description": "Developing a graph-based recommendation engine that suggests potential thesis collaborators — supervisors, industry experts, and peer students — while preserving user privacy through differential privacy mechanisms and on-device embedding computation.",
+    "motivation": "Finding the right thesis partner is a pain point I experienced first-hand; I want to solve it with technology that respects user data.",
+    "state": "proposed",
+    "imageUrl": "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=450&fit=crop",
+    "studentId": "student-01",
+    "topicId": null,
+    "companyId": null,
+    "universityId": "uni-01",
+    "supervisorIds": [],
+    "expertIds": [],
+    "createdAt": "2026-03-10T14:00:00Z",
+    "updatedAt": "2026-03-10T14:00:00Z"
   },
   {
     "id": "project-05",
@@ -84,8 +137,12 @@
     "topicId": "topic-11",
     "companyId": "company-06",
     "universityId": "uni-03",
-    "supervisorIds": ["supervisor-06"],
-    "expertIds": ["expert-11"],
+    "supervisorIds": [
+      "supervisor-06"
+    ],
+    "expertIds": [
+      "expert-11"
+    ],
     "createdAt": "2025-12-01T10:00:00Z",
     "updatedAt": "2026-01-15T11:30:00Z"
   },
@@ -99,7 +156,9 @@
     "topicId": "topic-33",
     "companyId": null,
     "universityId": "uni-02",
-    "supervisorIds": ["supervisor-03"],
+    "supervisorIds": [
+      "supervisor-03"
+    ],
     "expertIds": [],
     "createdAt": "2025-11-15T08:00:00Z",
     "updatedAt": "2026-01-10T10:00:00Z"
@@ -114,8 +173,12 @@
     "topicId": "topic-09",
     "companyId": "company-05",
     "universityId": "uni-04",
-    "supervisorIds": ["supervisor-09"],
-    "expertIds": ["expert-09"],
+    "supervisorIds": [
+      "supervisor-09"
+    ],
+    "expertIds": [
+      "expert-09"
+    ],
     "createdAt": "2025-10-15T09:00:00Z",
     "updatedAt": "2026-03-01T14:30:00Z"
   },
@@ -129,7 +192,9 @@
     "topicId": "topic-46",
     "companyId": null,
     "universityId": "uni-07",
-    "supervisorIds": ["supervisor-16"],
+    "supervisorIds": [
+      "supervisor-16"
+    ],
     "expertIds": [],
     "createdAt": "2025-10-01T10:00:00Z",
     "updatedAt": "2026-02-20T16:00:00Z"
@@ -144,8 +209,12 @@
     "topicId": "topic-15",
     "companyId": "company-08",
     "universityId": "uni-02",
-    "supervisorIds": ["supervisor-04"],
-    "expertIds": ["expert-15"],
+    "supervisorIds": [
+      "supervisor-04"
+    ],
+    "expertIds": [
+      "expert-15"
+    ],
     "createdAt": "2025-09-20T08:00:00Z",
     "updatedAt": "2026-03-10T11:00:00Z"
   },
@@ -159,7 +228,9 @@
     "topicId": "topic-53",
     "companyId": null,
     "universityId": "uni-09",
-    "supervisorIds": ["supervisor-23"],
+    "supervisorIds": [
+      "supervisor-23"
+    ],
     "expertIds": [],
     "createdAt": "2025-10-10T09:00:00Z",
     "updatedAt": "2026-02-28T13:00:00Z"
@@ -174,7 +245,9 @@
     "topicId": "topic-39",
     "companyId": null,
     "universityId": "uni-04",
-    "supervisorIds": ["supervisor-09"],
+    "supervisorIds": [
+      "supervisor-09"
+    ],
     "expertIds": [],
     "createdAt": "2025-09-01T08:00:00Z",
     "updatedAt": "2026-02-15T17:00:00Z"
@@ -189,8 +262,12 @@
     "topicId": "topic-05",
     "companyId": "company-03",
     "universityId": "uni-07",
-    "supervisorIds": ["supervisor-17"],
-    "expertIds": ["expert-05"],
+    "supervisorIds": [
+      "supervisor-17"
+    ],
+    "expertIds": [
+      "expert-05"
+    ],
     "createdAt": "2025-09-10T10:00:00Z",
     "updatedAt": "2026-02-01T15:00:00Z"
   },

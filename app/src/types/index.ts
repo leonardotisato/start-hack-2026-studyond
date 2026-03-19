@@ -102,6 +102,7 @@ export interface ThesisProject {
   description: string | null;
   motivation: string | null;
   state: ProjectState;
+  imageUrl?: string;
   studentId: string;
   topicId: string | null;
   companyId: string | null;
