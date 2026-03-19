@@ -1,14 +1,32 @@
-import { getStudents, getProjects, getFields, getStudyPrograms, getUniversities } from "@/lib/data";
+import {
+  getStudents,
+  getProjects,
+  getFields,
+  getStudyPrograms,
+  getUniversities,
+  getTopics,
+  getCompanies,
+} from "@/lib/data";
 import { ProfileView } from "@/components/profile/profile-view";
 
-export default async function ProfilePage() {
-  const [students, projects, fields, programs, universities] = await Promise.all([
-    getStudents(),
-    getProjects(),
-    getFields(),
-    getStudyPrograms(),
-    getUniversities(),
-  ]);
+interface ProfilePageProps {
+  searchParams: Promise<{ viewer?: string }>;
+}
+
+export default async function ProfilePage({ searchParams }: ProfilePageProps) {
+  const params = await searchParams;
+  const viewerMode = params.viewer === "company";
+
+  const [students, projects, fields, programs, universities, topics, companies] =
+    await Promise.all([
+      getStudents(),
+      getProjects(),
+      getFields(),
+      getStudyPrograms(),
+      getUniversities(),
+      getTopics(),
+      getCompanies(),
+    ]);
 
   // Demo: show the first student with a project
   const student = students[0];
@@ -16,6 +34,19 @@ export default async function ProfilePage() {
   const studentFields = fields.filter((f) => student.fieldIds.includes(f.id));
   const program = programs.find((p) => p.id === student.studyProgramId);
   const university = universities.find((u) => u.id === student.universityId);
+
+  // Resolve topics and companies for student's projects
+  const projectTopicIds = new Set(
+    studentProjects.map((p) => p.topicId).filter(Boolean)
+  );
+  const projectCompanyIds = new Set(
+    studentProjects.map((p) => p.companyId).filter(Boolean)
+  );
+
+  const relevantTopics = topics.filter((t) => projectTopicIds.has(t.id));
+  const relevantCompanies = companies.filter((c) =>
+    projectCompanyIds.has(c.id)
+  );
 
   return (
     <main className="container mx-auto max-w-4xl py-10 px-4">
@@ -26,6 +57,9 @@ export default async function ProfilePage() {
         fields={studentFields}
         program={program ?? null}
         university={university ?? null}
+        topics={relevantTopics}
+        companies={relevantCompanies}
+        viewerMode={viewerMode}
       />
     </main>
   );
