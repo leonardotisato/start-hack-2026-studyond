@@ -1,78 +1,107 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { runScoutAgent } from "@/lib/gps-scout-agent";
 import { findRecommendations } from "@/lib/gps-recommend";
-import type { RecommendationRequest } from "@/types/gps";
+import { getProject, getStudent, getTopic, getSupervisor } from "@/lib/data";
+import type { ScoutAgentRequest } from "@/types/gps";
 
-interface ScoutRequest {
-  projectId: string;
-  nodeId: string;
-  query: string;
+function sseEvent(data: object): string {
+  return `data: ${JSON.stringify(data)}\n\n`;
 }
 
-const STOP_WORDS = new Set([
-  "need", "find", "help", "want", "looking", "search", "someone", "that",
-  "with", "from", "about", "this", "have", "been", "would", "could",
-  "should", "they", "their", "them", "what", "where", "which", "when",
-  "some", "also", "like", "know", "good", "best", "does", "make", "give",
-  "tell", "show", "more", "very", "much", "just", "only", "well", "into",
-  "look", "there", "here", "than", "then", "each", "every",
-]);
-
-/**
- * Studyond Scout — searches ALL mock data for entities that can help
- * the student with a specific need tied to a graph node.
- */
 export async function POST(req: NextRequest) {
-  try {
-    const body: ScoutRequest = await req.json();
-    const { projectId, nodeId, query } = body;
+  const body: ScoutAgentRequest = await req.json();
+  const { projectId, nodeId, userMessage, graph, completedSubtasks, conversationHistory, currentSuggestions } = body;
 
-    const request = parseQueryToRequest(query);
-    const recommendations = await findRecommendations(request, projectId, 5);
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
+  const enc = new TextEncoder();
 
-    return NextResponse.json({
-      nodeId,
-      query,
-      recommendations,
-    });
-  } catch (err) {
-    console.error("Scout error:", err);
-    return NextResponse.json(
-      { error: "Scout search failed" },
-      { status: 500 }
-    );
-  }
-}
-
-function parseQueryToRequest(query: string): RecommendationRequest {
-  const lower = query.toLowerCase();
-
-  // Extract keywords (words longer than 2 chars, excluding stop words)
-  const keywords = query
-    .split(/\s+/)
-    .map((w) => w.replace(/[^\w]/g, "").toLowerCase())
-    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
-
-  // Determine type — default to "all" to search everywhere
-  let type: RecommendationRequest["type"] = "all";
-
-  if (lower.includes("supervisor") || lower.includes("professor") || lower.includes("academic advisor")) {
-    type = "supervisor";
-  } else if (lower.includes("company") || lower.includes("corporate") || lower.includes("sponsor") || lower.includes("partner")) {
-    type = "company";
-  } else if (lower.includes("topic") || lower.includes("thesis idea") || lower.includes("project idea")) {
-    type = "topic";
-  } else if (lower.includes("university") || lower.includes("institution") || lower.includes("school")) {
-    type = "university";
-  } else if (lower.includes("program") || lower.includes("master") || lower.includes("bachelor") || lower.includes("degree")) {
-    type = "program";
-  } else if (lower.includes("expert") || lower.includes("industry") || lower.includes("professional")) {
-    type = "expert";
-  }
-  // If no specific type detected, "all" searches everything
-
-  return {
-    type,
-    reason: query,
-    keywords: keywords.length > 0 ? keywords : ["research"],
+  const emit = async (data: object) => {
+    await writer.write(enc.encode(sseEvent(data)));
   };
+
+  (async () => {
+    try {
+      const node = graph.nodes.find((n) => n.id === nodeId);
+      if (!node) {
+        await emit({ type: "error", text: "Node not found." });
+        return;
+      }
+
+      await emit({ type: "status", text: `Focusing on "${node.label}"...` });
+
+      const project = await getProject(projectId);
+      if (!project) {
+        await emit({ type: "error", text: "Project not found." });
+        return;
+      }
+
+      const [student, topic, supervisor] = await Promise.all([
+        getStudent(project.studentId),
+        project.topicId ? getTopic(project.topicId) : null,
+        project.supervisorIds.length > 0 ? getSupervisor(project.supervisorIds[0]) : null,
+      ]);
+
+      await emit({ type: "status", text: "Thinking..." });
+
+      let proposal;
+      try {
+        await new Promise((r) => setTimeout(r, 300));
+        proposal = await runScoutAgent({
+          node,
+          graph,
+          project,
+          student,
+          topic,
+          supervisor,
+          userMessage,
+          completedSubtasks: completedSubtasks ?? {},
+          conversationHistory: conversationHistory ?? [],
+          currentSuggestions: currentSuggestions ?? [],
+        });
+      } catch (err: unknown) {
+        console.error("Scout agent error:", err instanceof Error ? err.message : err);
+        await emit({
+          type: "done",
+          proposal: {
+            addNodes: [],
+            updateNodes: [],
+            removeNodeIds: [],
+            addEdges: [],
+            removeEdgeIds: [],
+            completeSubtasks: [],
+            message: "Sorry, I had trouble processing that. Could you rephrase?",
+          },
+        });
+        return;
+      }
+
+      if (proposal.recommend) {
+        await emit({ type: "status", text: "Searching the database..." });
+        try {
+          const recommendations = await findRecommendations(proposal.recommend, projectId);
+          if (recommendations.length > 0) {
+            await emit({ type: "recommendations", recommendations });
+          }
+        } catch (err) {
+          console.error("Scout recommendation error:", err);
+        }
+      }
+
+      await emit({ type: "done", proposal });
+    } catch (err) {
+      await emit({ type: "error", text: "Something went wrong. Please try again." });
+      console.error(err);
+    } finally {
+      await writer.close();
+    }
+  })();
+
+  return new Response(stream.readable, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

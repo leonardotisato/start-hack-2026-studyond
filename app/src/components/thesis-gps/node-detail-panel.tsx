@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import type { GpsNode } from "@/types/gps";
+import { ScoutChatPanel } from "./scout-chat-panel";
+import type { GpsNode, ScoutMessage, GpsProposal } from "@/types/gps";
 
 interface NodeDetailPanelProps {
   node: GpsNode;
@@ -15,8 +15,13 @@ interface NodeDetailPanelProps {
   isLocked: boolean;
   isBranch: boolean;
   onChooseBranch?: () => void;
-  onAskSupport?: (nodeId: string, query: string) => void;
-  isScoutLoading?: boolean;
+  scoutMessages: ScoutMessage[];
+  onScoutMessage: (nodeId: string, message: string) => void;
+  isScoutStreaming: boolean;
+  scoutStatusSteps: string[];
+  pendingScoutProposal: GpsProposal | null;
+  onAcceptScoutProposal: () => void;
+  onRejectScoutProposal: () => void;
 }
 
 const STATE_LABELS: Record<
@@ -29,6 +34,38 @@ const STATE_LABELS: Record<
   blocked: { label: "Blocked", variant: "destructive" },
 };
 
+function useDraggable(initialX: number, initialY: number) {
+  const [pos, setPos] = useState({ x: initialX, y: initialY });
+  const dragging = useRef(false);
+  const offset = useRef({ x: 0, y: 0 });
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only drag from the header, not from buttons/inputs inside it
+    if ((e.target as HTMLElement).closest("button, input, textarea, a")) return;
+    dragging.current = true;
+    offset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+    e.preventDefault();
+  }, [pos]);
+
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      if (!dragging.current) return;
+      setPos({ x: e.clientX - offset.current.x, y: e.clientY - offset.current.y });
+    }
+    function onMouseUp() {
+      dragging.current = false;
+    }
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
+
+  return { pos, onMouseDown };
+}
+
 export function NodeDetailPanel({
   node,
   onClose,
@@ -37,18 +74,67 @@ export function NodeDetailPanel({
   isLocked,
   isBranch,
   onChooseBranch,
-  onAskSupport,
-  isScoutLoading = false,
+  scoutMessages,
+  onScoutMessage,
+  isScoutStreaming,
+  scoutStatusSteps,
+  pendingScoutProposal,
+  onAcceptScoutProposal,
+  onRejectScoutProposal,
 }: NodeDetailPanelProps) {
-  const [showSupportInput, setShowSupportInput] = useState(false);
-  const [supportQuery, setSupportQuery] = useState("");
+  const [showScoutChat, setShowScoutChat] = useState(false);
   const stateInfo = STATE_LABELS[node.state] ?? STATE_LABELS.upcoming;
   const total = node.subtasks?.length ?? 0;
   const done = completedSubtasks.length;
 
+  // Reset drag position when node changes
+  const { pos, onMouseDown } = useDraggable(0, 0);
+
+  // Auto-open scout chat if there's existing conversation
+  useEffect(() => {
+    if (scoutMessages.length > 0) {
+      setShowScoutChat(true);
+    }
+  }, [scoutMessages.length]);
+
+  const dragStyle = pos.x !== 0 || pos.y !== 0
+    ? { transform: `translate(${pos.x}px, ${pos.y}px)`, right: "16px", top: "16px" }
+    : undefined;
+
+  // Scout chat mode
+  if (showScoutChat) {
+    return (
+      <div
+        className="absolute right-4 top-4 bottom-4 w-80 bg-background border rounded-lg shadow-xl z-50 flex flex-col overflow-hidden"
+        style={dragStyle}
+      >
+        <ScoutChatPanel
+          nodeLabel={node.label}
+          messages={scoutMessages}
+          onSend={(msg) => onScoutMessage(node.id, msg)}
+          onBack={() => setShowScoutChat(false)}
+          isStreaming={isScoutStreaming}
+          statusSteps={scoutStatusSteps}
+          pendingProposal={pendingScoutProposal}
+          onAcceptProposal={onAcceptScoutProposal}
+          onRejectProposal={onRejectScoutProposal}
+          onHeaderMouseDown={onMouseDown}
+        />
+      </div>
+    );
+  }
+
+  // Normal detail view
   return (
-    <div className="absolute right-4 top-4 w-80 bg-background border rounded-lg shadow-xl z-50 p-4">
-      <div className="flex items-start justify-between mb-3">
+    <div
+      className="absolute right-4 top-4 w-80 bg-background border rounded-lg shadow-xl z-50 p-4"
+      style={dragStyle}
+    >
+      {/* Draggable header */}
+      <div
+        className="flex items-start justify-between mb-3 cursor-grab active:cursor-grabbing select-none"
+        onMouseDown={onMouseDown}
+      >
         <h3 className="font-semibold text-lg leading-tight">{node.label}</h3>
         <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0">
           x
@@ -164,84 +250,19 @@ export function NodeDetailPanel({
         </>
       )}
 
-      {/* Ask for support — Studyond Scout */}
-      {onAskSupport && (
-        <>
-          <Separator className="my-3" />
-          {!showSupportInput ? (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full gap-2 border-violet-300 text-violet-700 hover:bg-violet-50"
-              onClick={() => setShowSupportInput(true)}
-              disabled={isScoutLoading}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-              </svg>
-              Ask for support
-            </Button>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                </svg>
-                <span className="text-xs font-semibold text-violet-700">Studyond Scout</span>
-              </div>
-              <Textarea
-                value={supportQuery}
-                onChange={(e) => setSupportQuery(e.target.value)}
-                placeholder={`e.g. "I need funding for data collection" or "Find an expert in NLP"`}
-                className="min-h-[60px] max-h-[100px] resize-none text-sm"
-                rows={2}
-                disabled={isScoutLoading}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (supportQuery.trim() && !isScoutLoading) {
-                      onAskSupport(node.id, supportQuery.trim());
-                      setSupportQuery("");
-                      setShowSupportInput(false);
-                    }
-                  }
-                }}
-              />
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  className="flex-1 bg-violet-600 hover:bg-violet-700"
-                  disabled={!supportQuery.trim() || isScoutLoading}
-                  onClick={() => {
-                    onAskSupport(node.id, supportQuery.trim());
-                    setSupportQuery("");
-                    setShowSupportInput(false);
-                  }}
-                >
-                  {isScoutLoading ? "Searching..." : "Search"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => { setShowSupportInput(false); setSupportQuery(""); }}
-                  disabled={isScoutLoading}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {isScoutLoading && (
-            <div className="mt-2 rounded-md bg-violet-50 border border-violet-200 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span className="inline-block h-2 w-2 rounded-full bg-violet-500 animate-pulse shrink-0" />
-                <span className="text-xs font-medium text-violet-700">Studyond Scout is searching...</span>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      {/* Ask for support — opens Scout chat */}
+      <Separator className="my-3" />
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full gap-2 border-violet-300 text-violet-700 hover:bg-violet-50"
+        onClick={() => setShowScoutChat(true)}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+        </svg>
+        {scoutMessages.length > 0 ? "Continue with Scout" : "Ask for support"}
+      </Button>
     </div>
   );
 }
