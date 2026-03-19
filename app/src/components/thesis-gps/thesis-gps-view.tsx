@@ -51,6 +51,8 @@ interface ThesisGpsViewProps {
   onScoutEdgesChange: React.Dispatch<React.SetStateAction<Edge[]>>;
   hiddenScoutIds: Set<string>;
   onHiddenScoutIdsChange: React.Dispatch<React.SetStateAction<Set<string>>>;
+  studentName?: string;
+  supervisorName?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -207,6 +209,8 @@ function ThesisGpsViewInner({
   onScoutEdgesChange: setScoutEdges,
   hiddenScoutIds,
   onHiddenScoutIdsChange: setHiddenScoutIds,
+  studentName,
+  supervisorName,
 }: ThesisGpsViewProps) {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -811,6 +815,24 @@ function ThesisGpsViewInner({
           <Background />
           <Controls />
         </ReactFlow>
+
+        {/* Presence chip */}
+        <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-background/90 backdrop-blur border shadow-sm px-2.5 py-1.5">
+          <div className="relative group" title={studentName ?? "Student"}>
+            <div className="size-7 rounded-full bg-violet-600 flex items-center justify-center text-[11px] font-semibold text-white ring-2 ring-green-400 ring-offset-1 ring-offset-background">
+              {(studentName ?? "S").split(" ").map((w) => w[0]).join("").slice(0, 2)}
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-green-500 border-2 border-background" />
+          </div>
+          {supervisorName && (
+            <div className="relative group" title={`${supervisorName} (offline)`}>
+              <div className="size-7 rounded-full bg-slate-500 flex items-center justify-center text-[11px] font-semibold text-white ring-2 ring-red-400 ring-offset-1 ring-offset-background">
+                {supervisorName.replace(/^(Prof\.|Dr\.|Mr\.|Ms\.)\s*/i, "").split(" ").map((w) => w[0]).join("").slice(0, 2)}
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 border-2 border-background" />
+            </div>
+          )}
+        </div>
 
         {/* Scout controls */}
         {scoutNodes.length > 0 && (

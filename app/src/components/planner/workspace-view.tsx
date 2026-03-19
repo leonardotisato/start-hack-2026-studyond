@@ -102,6 +102,7 @@ interface WorkspaceViewProps {
   projectId: string;
   studentName?: string;
   projectTitle?: string;
+  supervisorName?: string;
 }
 
 // --- Session storage helpers (persist across navigation, reset on app restart) ---
@@ -138,6 +139,7 @@ export function WorkspaceView({
   projectId,
   studentName,
   projectTitle,
+  supervisorName,
 }: WorkspaceViewProps) {
   const [graph, setGraph] = useState<GpsGraph>(() =>
     loadSession(STORAGE_KEYS.graph, DEFAULT_GRAPH),
@@ -341,6 +343,8 @@ export function WorkspaceView({
         onScoutEdgesChange={setScoutEdges}
         hiddenScoutIds={hiddenScoutIds}
         onHiddenScoutIdsChange={setHiddenScoutIds}
+        studentName={studentName}
+        supervisorName={supervisorName}
       />
 
       {/* Task Board */}

@@ -1,4 +1,4 @@
-import { getProjects, getStudents } from "@/lib/data";
+import { getProjects, getStudents, getSupervisor } from "@/lib/data";
 import { WorkspaceView } from "@/components/planner/workspace-view";
 
 export default async function PlannerPage() {
@@ -9,6 +9,9 @@ export default async function PlannerPage() {
     projects[0];
 
   const student = students.find((s) => s.id === activeProject.studentId);
+  const supervisor = activeProject.supervisorIds.length > 0
+    ? await getSupervisor(activeProject.supervisorIds[0])
+    : null;
 
   return (
     <main className="container mx-auto max-w-7xl py-6 px-4">
@@ -16,6 +19,7 @@ export default async function PlannerPage() {
         projectId={activeProject.id}
         studentName={student ? `${student.firstName} ${student.lastName}` : undefined}
         projectTitle={activeProject.title}
+        supervisorName={supervisor ? `${supervisor.title} ${supervisor.firstName} ${supervisor.lastName}` : undefined}
       />
     </main>
   );
