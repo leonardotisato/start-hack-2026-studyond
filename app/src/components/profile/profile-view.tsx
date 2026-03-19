@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import type {
@@ -84,6 +84,7 @@ export function ProfileView({
         <CardHeader className="relative pb-2 -mt-8 px-6">
           <div className="flex flex-col sm:flex-row items-start gap-4">
             <Avatar className="h-20 w-20 border-4 border-background shadow-lg text-xl font-bold">
+              <AvatarImage src="/luca-meier.jpg" alt={`${student.firstName} ${student.lastName}`} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xl">
                 {initials}
               </AvatarFallback>
