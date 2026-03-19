@@ -3,7 +3,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import type { GpsProposal, Recommendation, ContextSource, ScoutMessage } from "@/types/gps";
+import type {
+  GpsProposal,
+  Recommendation,
+  ContextSource,
+  ScoutMessage,
+} from "@/types/gps";
 import { CONTEXT_SOURCE_META } from "@/types/gps";
 import { Mic, ArrowUp, Square } from "lucide-react";
 import { RecommendationCard } from "./recommendation-card";
@@ -23,7 +28,11 @@ interface ScoutConversationOption {
 
 interface GpsChatPanelProps {
   messages: ChatMessage[];
-  onSend: (message: string, attachedContext: ContextSource[], attachedScoutNodeIds: string[]) => void;
+  onSend: (
+    message: string,
+    attachedContext: ContextSource[],
+    attachedScoutNodeIds: string[],
+  ) => void;
   isLoading: boolean;
   statusSteps: string[];
   pendingProposal: boolean;
@@ -56,7 +65,9 @@ export function GpsChatPanel({
   const [input, setInput] = useState("");
   const [showSummary, setShowSummary] = useState(false);
   const [attachedContext, setAttachedContext] = useState<ContextSource[]>([]);
-  const [attachedScoutNodeIds, setAttachedScoutNodeIds] = useState<string[]>([]);
+  const [attachedScoutNodeIds, setAttachedScoutNodeIds] = useState<string[]>(
+    [],
+  );
   const [showContextMenu, setShowContextMenu] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -68,13 +79,17 @@ export function GpsChatPanel({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+      if (
+        contextMenuRef.current &&
+        !contextMenuRef.current.contains(e.target as Node)
+      ) {
         setShowContextMenu(false);
       }
     }
     if (showContextMenu) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showContextMenu]);
 
@@ -94,19 +109,27 @@ export function GpsChatPanel({
 
   function toggleContext(source: ContextSource) {
     setAttachedContext((prev) =>
-      prev.includes(source) ? prev.filter((s) => s !== source) : [...prev, source]
+      prev.includes(source)
+        ? prev.filter((s) => s !== source)
+        : [...prev, source],
     );
   }
 
   function toggleScoutConversation(nodeId: string) {
     setAttachedScoutNodeIds((prev) =>
-      prev.includes(nodeId) ? prev.filter((id) => id !== nodeId) : [...prev, nodeId]
+      prev.includes(nodeId)
+        ? prev.filter((id) => id !== nodeId)
+        : [...prev, nodeId],
     );
   }
 
   const totalAttached = attachedContext.length + attachedScoutNodeIds.length;
-  const startRecording = useCallback(async () => {
+  async function startRecording() {
     try {
+      const capturedInput = input;
+      const capturedContext = attachedContext;
+      const capturedScoutIds = attachedScoutNodeIds;
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: "audio/webm",
@@ -132,8 +155,13 @@ export function GpsChatPanel({
             body: formData,
           });
           const data = await res.json();
-          if (data.text)
-            setInput((prev) => (prev ? prev + " " + data.text : data.text));
+          if (data.text) {
+            const combined = capturedInput
+              ? capturedInput + " " + data.text
+              : data.text;
+            setInput("");
+            onSend(combined, capturedContext, capturedScoutIds);
+          }
         } finally {
           setIsTranscribing(false);
         }
@@ -144,7 +172,7 @@ export function GpsChatPanel({
     } catch {
       // User denied microphone or not available
     }
-  }, []);
+  }
 
   const stopRecording = useCallback(() => {
     if (
@@ -167,7 +195,10 @@ export function GpsChatPanel({
       </div>
 
       {/* Messages — scrollable area */}
-      <div ref={scrollAreaRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
+      <div
+        ref={scrollAreaRef}
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3"
+      >
         <div className="space-y-3">
           {messages.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-6">
@@ -451,8 +482,18 @@ export function GpsChatPanel({
                     onClick={() => toggleContext(source)}
                     className="ml-0.5 rounded-full hover:bg-violet-200 p-0.5 transition"
                   >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
                   </button>
                 </span>
@@ -472,8 +513,18 @@ export function GpsChatPanel({
                     onClick={() => toggleScoutConversation(nodeId)}
                     className="ml-0.5 rounded-full hover:bg-blue-200 p-0.5 transition"
                   >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    <svg
+                      width="10"
+                      height="10"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
                   </button>
                 </span>
@@ -489,7 +540,16 @@ export function GpsChatPanel({
               onClick={() => setShowContextMenu((v) => !v)}
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
               </svg>
               {totalAttached > 0
@@ -516,10 +576,22 @@ export function GpsChatPanel({
                       <span className="text-sm shrink-0">{meta.icon}</span>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{meta.label}</p>
-                        <p className="text-[10px] text-muted-foreground">{meta.description}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {meta.description}
+                        </p>
                       </div>
                       {isActive && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#7c3aed"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="shrink-0"
+                        >
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       )}
@@ -534,7 +606,9 @@ export function GpsChatPanel({
                       Scout Conversations
                     </p>
                     {scoutConversations.map((conv) => {
-                      const isActive = attachedScoutNodeIds.includes(conv.nodeId);
+                      const isActive = attachedScoutNodeIds.includes(
+                        conv.nodeId,
+                      );
                       return (
                         <button
                           key={conv.nodeId}
@@ -546,10 +620,22 @@ export function GpsChatPanel({
                           <span className="text-sm shrink-0">💬</span>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium">{conv.nodeLabel}</p>
-                            <p className="text-[10px] text-muted-foreground">{conv.messageCount} messages</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {conv.messageCount} messages
+                            </p>
                           </div>
                           {isActive && (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#2563eb"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="shrink-0"
+                            >
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
                           )}
