@@ -16,7 +16,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { gpsNodeTypes, type GpsNodeData } from "./gps-node";
+import { gpsNodeTypes, type GpsNodeData, type ScoutNodeData } from "./gps-node";
 import { NodeDetailPanel } from "./node-detail-panel";
 import { GpsChatPanel, type ChatMessage } from "./gps-chat-panel";
 import type { GpsGraph, GpsNode, GpsEdge, GpsProposal, Recommendation } from "@/types/gps";
@@ -201,6 +201,10 @@ function ThesisGpsViewInner({
   const [pendingProposal, setPendingProposal] = useState<GpsProposal | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [hasFitView, setHasFitView] = useState(false);
+  const [isScoutLoading, setIsScoutLoading] = useState(false);
+  const [scoutNodes, setScoutNodes] = useState<Node[]>([]);
+  const [scoutEdges, setScoutEdges] = useState<Edge[]>([]);
+  const [hiddenScoutIds, setHiddenScoutIds] = useState<Set<string>>(new Set());
   const { fitView } = useReactFlow();
 
   // Compute states and layout
@@ -217,10 +221,20 @@ function ThesisGpsViewInner({
   // Sync ReactFlow state when graph or subtasks change
   useEffect(() => {
     if (!pendingProposal) {
-      setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded));
-      setEdges(toFlowEdges(graph.edges, computedNodes));
+      const visibleScoutNodes = scoutNodes
+        .filter((n) => !hiddenScoutIds.has(n.id))
+        .map((n) => ({
+          ...n,
+          data: {
+            ...n.data,
+            onDismiss: () => setHiddenScoutIds((prev) => new Set([...prev, n.id])),
+          },
+        }));
+      const visibleScoutEdges = scoutEdges.filter((e) => !hiddenScoutIds.has(e.target));
+      setNodes([...toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded), ...visibleScoutNodes]);
+      setEdges([...toFlowEdges(graph.edges, computedNodes), ...visibleScoutEdges]);
     }
-  }, [computedNodes, positions, completedSubtasks, graph, recentlyAdded, setNodes, setEdges, pendingProposal]);
+  }, [computedNodes, positions, completedSubtasks, graph, recentlyAdded, setNodes, setEdges, pendingProposal, scoutNodes, scoutEdges, hiddenScoutIds]);
 
   // Keep page scrolled to the graph when agent is working or proposal appears
   useEffect(() => {
@@ -278,6 +292,8 @@ function ThesisGpsViewInner({
   }, [selectedNodeId, computedNodes]);
 
   const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
+    // Don't select scout result nodes — they're not part of the main graph
+    if (node.id.startsWith("scout-")) return;
     setSelectedNodeId(node.id);
   }, []);
 
@@ -299,6 +315,105 @@ function ThesisGpsViewInner({
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
+  }
+
+  // --- Studyond Scout: ask for support from node detail panel ---
+  async function handleAskSupport(nodeId: string, query: string) {
+    setIsScoutLoading(true);
+    showToast("Studyond Scout is searching...");
+
+    try {
+      const res = await fetch("/api/thesis-gps/scout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, nodeId, query }),
+      });
+
+      if (!res.ok) throw new Error("Scout request failed");
+      const data: { nodeId: string; query: string; recommendations: Recommendation[] } = await res.json();
+
+      if (data.recommendations.length === 0) {
+        showToast("No matches found. Try a different query.");
+        return;
+      }
+
+      // Get the source node position and find a clear area below it
+      const sourceNodePos = positions.get(nodeId) ?? { x: 400, y: 200 };
+
+      // Collect all existing node positions (graph + existing scout) to avoid overlap
+      const occupiedAreas = [
+        ...[...positions.entries()].map(([, pos]) => ({ x: pos.x, y: pos.y, w: 240, h: 120 })),
+        ...scoutNodes.map((n) => ({ x: n.position.x, y: n.position.y, w: 260, h: 160 })),
+      ];
+
+      // Place scout nodes below the source, spread horizontally and centered
+      const scoutCardWidth = 260;
+      const scoutGap = 20;
+      const count = data.recommendations.length;
+      const totalWidth = count * scoutCardWidth + (count - 1) * scoutGap;
+      const startX = sourceNodePos.x - totalWidth / 2 + scoutCardWidth / 2;
+      let baseY = sourceNodePos.y + 180;
+
+      // Shift down if any existing nodes overlap at baseY
+      const wouldOverlap = (y: number) =>
+        occupiedAreas.some(
+          (area) =>
+            Math.abs(area.y - y) < 140 &&
+            startX < area.x + area.w &&
+            startX + totalWidth > area.x
+        );
+      while (wouldOverlap(baseY)) {
+        baseY += 160;
+      }
+
+      const newScoutNodes: Node[] = data.recommendations.map((rec, i) => ({
+        id: `scout-${nodeId}-${rec.id}`,
+        type: "scoutResult",
+        position: {
+          x: startX + i * (scoutCardWidth + scoutGap),
+          y: baseY,
+        },
+        data: {
+          name: rec.name,
+          title: rec.title,
+          affiliation: rec.affiliation,
+          email: rec.email,
+          type: rec.type,
+          matchScore: rec.matchScore,
+          fieldNames: rec.fieldNames,
+        } satisfies ScoutNodeData,
+      }));
+
+      const newScoutEdges: Edge[] = data.recommendations.map((rec) => ({
+        id: `scout-edge-${nodeId}-${rec.id}`,
+        source: nodeId,
+        target: `scout-${nodeId}-${rec.id}`,
+        sourceHandle: "scout-source",
+        targetHandle: "scout-target",
+        animated: true,
+        style: { stroke: "#8b5cf6", strokeWidth: 1.5, strokeDasharray: "4 4" },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 14,
+          height: 14,
+          color: "#8b5cf6",
+        },
+      }));
+
+      setScoutNodes((prev) => [...prev.filter((n) => !n.id.startsWith(`scout-${nodeId}-`)), ...newScoutNodes]);
+      setScoutEdges((prev) => [...prev.filter((e) => !e.id.startsWith(`scout-edge-${nodeId}-`)), ...newScoutEdges]);
+
+      showToast(`Found ${data.recommendations.length} suggestion${data.recommendations.length > 1 ? "s" : ""}`);
+
+      // Focus on the scout results
+      setTimeout(() => {
+        fitView({ nodes: newScoutNodes, padding: 0.3, maxZoom: 1.2, duration: 500 });
+      }, 100);
+    } catch {
+      showToast("Scout search failed. Please try again.");
+    } finally {
+      setIsScoutLoading(false);
+    }
   }
 
   // --- Chat with agent (streaming) ---
@@ -469,6 +584,34 @@ function ThesisGpsViewInner({
           <Controls />
         </ReactFlow>
 
+        {/* Scout controls */}
+        {scoutNodes.length > 0 && (
+          <div className="absolute bottom-3 left-14 z-10 flex gap-1.5">
+            {hiddenScoutIds.size < scoutNodes.length && (
+              <button
+                onClick={() => setHiddenScoutIds(new Set(scoutNodes.map((n) => n.id)))}
+                className="flex items-center gap-1.5 rounded-md border bg-background border-gray-300 text-muted-foreground hover:bg-gray-100 px-2.5 py-1.5 text-xs font-medium shadow-sm transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+                Hide all
+              </button>
+            )}
+            {hiddenScoutIds.size > 0 && (
+              <button
+                onClick={() => setHiddenScoutIds(new Set())}
+                className="flex items-center gap-1.5 rounded-md border bg-violet-100 border-violet-300 text-violet-700 hover:bg-violet-200 px-2.5 py-1.5 text-xs font-medium shadow-sm transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+                </svg>
+                Show all ({hiddenScoutIds.size})
+              </button>
+            )}
+          </div>
+        )}
+
         {selectedNode && (
           <NodeDetailPanel
             node={selectedNode}
@@ -478,6 +621,8 @@ function ThesisGpsViewInner({
             isLocked={!isNodeInteractable(graph, selectedNode.id, completedSubtasks)}
             isBranch={isBranchNode(graph, selectedNode.id)}
             onChooseBranch={handleChooseBranch}
+            onAskSupport={handleAskSupport}
+            isScoutLoading={isScoutLoading}
           />
         )}
 

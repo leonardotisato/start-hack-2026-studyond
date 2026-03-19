@@ -4,6 +4,7 @@ import {
   getCompanies,
   getFields,
   getUniversities,
+  getStudyPrograms,
   getTopics,
   getStudent,
   getProject,
@@ -13,20 +14,26 @@ import type { RecommendationRequest, Recommendation, RecommendationType } from "
 import type { Field } from "@/types";
 
 /**
- * Sub-agent: search mock data for people/entities matching the user's need.
- * Uses field-based matching + keyword search on research interests, about, skills.
+ * Studyond Scout — searches ALL mock data for entities matching the user's need.
+ * Searches supervisors, experts, companies, topics, universities, and study programs.
+ * Returns the best matches across all sources, ranked by combined score.
  */
 export async function findRecommendations(
   request: RecommendationRequest,
   projectId: string,
-  maxResults = 3
+  maxResults = 5
 ): Promise<Recommendation[]> {
-  const [fields, universities, companies, project] = await Promise.all([
-    getFields(),
-    getUniversities(),
-    getCompanies(),
-    getProject(projectId),
-  ]);
+  const [fields, universities, companies, studyPrograms, supervisors, experts, topics, project] =
+    await Promise.all([
+      getFields(),
+      getUniversities(),
+      getCompanies(),
+      getStudyPrograms(),
+      getSupervisors(),
+      getExperts(),
+      getTopics(),
+      getProject(projectId),
+    ]);
 
   const fieldMap = new Map(fields.map((f) => [f.id, f]));
   const uniMap = new Map(universities.map((u) => [u.id, u.name]));
@@ -38,30 +45,155 @@ export async function findRecommendations(
 
   // Find field IDs that match the keywords
   const keywordFieldIds = resolveKeywordFields(request.keywords, fields);
-  // Combine student fields + keyword-matched fields for scoring
   const searchFieldIds = [...new Set([...studentFieldIds, ...keywordFieldIds])];
 
-  const lowerKeywords = request.keywords.map((k) => k.toLowerCase());
+  const kw = request.keywords.map((k) => k.toLowerCase());
 
-  switch (request.type) {
-    case "supervisor":
-      return searchSupervisors(searchFieldIds, lowerKeywords, fieldMap, uniMap, request.reason, maxResults);
-    case "expert":
-      return searchExperts(searchFieldIds, lowerKeywords, fieldMap, companyMap, request.reason, maxResults);
-    case "company":
-      return searchCompanies(lowerKeywords, companyMap, request.reason, maxResults);
-    case "topic":
-      return searchTopics(searchFieldIds, lowerKeywords, fieldMap, uniMap, companyMap, request.reason, maxResults);
-    default:
-      // Search both supervisors and experts, return best mix
-      const [sups, exps] = await Promise.all([
-        searchSupervisors(searchFieldIds, lowerKeywords, fieldMap, uniMap, request.reason, maxResults),
-        searchExperts(searchFieldIds, lowerKeywords, fieldMap, companyMap, request.reason, maxResults),
-      ]);
-      return [...sups, ...exps]
-        .sort((a, b) => b.matchScore - a.matchScore)
-        .slice(0, maxResults);
+  // If a specific type is requested, only search that type
+  // Otherwise, search EVERYTHING and return the best mix
+  const searchAll = request.type === "all";
+  const results: Recommendation[] = [];
+
+  // --- Supervisors ---
+  if (searchAll || request.type === "supervisor") {
+    for (const sup of supervisors) {
+      const fieldScore = computeMatch(searchFieldIds, sup.fieldIds).score;
+      const text = textMatchScore(kw, ...sup.researchInterests, sup.about, sup.firstName + " " + sup.lastName, sup.title);
+      const score = fieldScore * 0.5 + text * 0.5;
+      if (score > 0) {
+        results.push({
+          id: sup.id,
+          type: "supervisor",
+          name: `${sup.title} ${sup.firstName} ${sup.lastName}`,
+          title: sup.researchInterests.slice(0, 3).join(", "),
+          affiliation: uniMap.get(sup.universityId) ?? "University",
+          email: sup.email,
+          reason: request.reason,
+          matchScore: Math.min(score, 1),
+          fieldNames: resolveFieldNames(sup.fieldIds, fieldMap),
+        });
+      }
+    }
   }
+
+  // --- Experts ---
+  if (searchAll || request.type === "expert") {
+    for (const exp of experts) {
+      const fieldScore = computeMatch(searchFieldIds, exp.fieldIds).score;
+      const companyName = companyMap.get(exp.companyId) ?? "";
+      const text = textMatchScore(kw, exp.title, exp.about, exp.firstName + " " + exp.lastName, companyName);
+      const score = fieldScore * 0.5 + text * 0.5;
+      if (score > 0) {
+        results.push({
+          id: exp.id,
+          type: "expert",
+          name: `${exp.firstName} ${exp.lastName}`,
+          title: exp.title,
+          affiliation: companyName || "Company",
+          email: exp.email,
+          reason: request.reason,
+          matchScore: Math.min(score, 1),
+          fieldNames: resolveFieldNames(exp.fieldIds, fieldMap),
+        });
+      }
+    }
+  }
+
+  // --- Companies ---
+  if (searchAll || request.type === "company") {
+    for (const comp of companies) {
+      const text = textMatchScore(kw, comp.name, comp.description, comp.about, ...comp.domains);
+      if (text > 0) {
+        results.push({
+          id: comp.id,
+          type: "company",
+          name: comp.name,
+          title: comp.domains.slice(0, 3).join(", "),
+          affiliation: `${comp.size} employees`,
+          email: "",
+          reason: request.reason,
+          matchScore: Math.min(text, 1),
+          fieldNames: comp.domains.slice(0, 3),
+        });
+      }
+    }
+  }
+
+  // --- Topics ---
+  if (searchAll || request.type === "topic") {
+    for (const topic of topics) {
+      const fieldScore = computeMatch(searchFieldIds, topic.fieldIds).score;
+      const ownerName = topic.companyId
+        ? companyMap.get(topic.companyId) ?? ""
+        : uniMap.get(topic.universityId ?? "") ?? "";
+      const text = textMatchScore(kw, topic.title, topic.description, ownerName);
+      const score = fieldScore * 0.5 + text * 0.5;
+      if (score > 0) {
+        const employmentTag = topic.employment === "yes"
+          ? ` (${topic.employmentType ?? "employment"})`
+          : topic.employment === "open"
+            ? " (employment possible)"
+            : "";
+        results.push({
+          id: topic.id,
+          type: "topic",
+          name: topic.title,
+          title: (topic.type === "job" ? "Industry thesis" : "Academic thesis") + employmentTag,
+          affiliation: ownerName || "Unknown",
+          email: "",
+          reason: request.reason,
+          matchScore: Math.min(score, 1),
+          fieldNames: resolveFieldNames(topic.fieldIds, fieldMap),
+        });
+      }
+    }
+  }
+
+  // --- Universities ---
+  if (searchAll || request.type === "university") {
+    for (const uni of universities) {
+      const text = textMatchScore(kw, uni.name, uni.about, ...uni.domains);
+      if (text > 0) {
+        results.push({
+          id: uni.id,
+          type: "university",
+          name: uni.name,
+          title: uni.country === "CH" ? "Swiss University" : "University",
+          affiliation: uni.domains.join(", "),
+          email: "",
+          reason: request.reason,
+          matchScore: Math.min(text, 1),
+          fieldNames: [],
+        });
+      }
+    }
+  }
+
+  // --- Study Programs ---
+  if (searchAll || request.type === "program") {
+    for (const prog of studyPrograms) {
+      const uniName = uniMap.get(prog.universityId) ?? "";
+      const text = textMatchScore(kw, prog.name, prog.about, uniName, prog.degree);
+      if (text > 0) {
+        results.push({
+          id: prog.id,
+          type: "program",
+          name: prog.name,
+          title: `${prog.degree.toUpperCase()} program`,
+          affiliation: uniName || "University",
+          email: "",
+          reason: request.reason,
+          matchScore: Math.min(text, 1),
+          fieldNames: [],
+        });
+      }
+    }
+  }
+
+  // Sort by score and return top results
+  return results
+    .sort((a, b) => b.matchScore - a.matchScore)
+    .slice(0, maxResults);
 }
 
 function resolveKeywordFields(keywords: string[], fields: Field[]): string[] {
@@ -89,151 +221,4 @@ function textMatchScore(keywords: string[], ...texts: (string | null | undefined
 
 function resolveFieldNames(fieldIds: string[], fieldMap: Map<string, Field>): string[] {
   return fieldIds.map((id) => fieldMap.get(id)?.name ?? id);
-}
-
-async function searchSupervisors(
-  searchFieldIds: string[],
-  keywords: string[],
-  fieldMap: Map<string, Field>,
-  uniMap: Map<string, string>,
-  reason: string,
-  max: number
-): Promise<Recommendation[]> {
-  const supervisors = await getSupervisors();
-
-  return supervisors
-    .map((sup) => {
-      const fieldMatch = computeMatch(searchFieldIds, sup.fieldIds);
-      const textScore = textMatchScore(
-        keywords,
-        ...sup.researchInterests,
-        sup.about,
-        sup.firstName + " " + sup.lastName
-      );
-      const score = fieldMatch.score * 0.6 + textScore * 0.4;
-      return { sup, score, fieldMatch };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, max)
-    .map(({ sup, score }) => ({
-      id: sup.id,
-      type: "supervisor" as RecommendationType,
-      name: `${sup.title} ${sup.firstName} ${sup.lastName}`,
-      title: sup.researchInterests.slice(0, 3).join(", "),
-      affiliation: uniMap.get(sup.universityId) ?? "University",
-      email: sup.email,
-      reason,
-      matchScore: Math.min(score, 1),
-      fieldNames: resolveFieldNames(sup.fieldIds, fieldMap),
-    }));
-}
-
-async function searchExperts(
-  searchFieldIds: string[],
-  keywords: string[],
-  fieldMap: Map<string, Field>,
-  companyMap: Map<string, string>,
-  reason: string,
-  max: number
-): Promise<Recommendation[]> {
-  const experts = await getExperts();
-
-  return experts
-    .map((exp) => {
-      const fieldMatch = computeMatch(searchFieldIds, exp.fieldIds);
-      const textScore = textMatchScore(
-        keywords,
-        exp.title,
-        exp.about,
-        exp.firstName + " " + exp.lastName
-      );
-      const score = fieldMatch.score * 0.6 + textScore * 0.4;
-      return { exp, score };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, max)
-    .map(({ exp, score }) => ({
-      id: exp.id,
-      type: "expert" as RecommendationType,
-      name: `${exp.firstName} ${exp.lastName}`,
-      title: exp.title,
-      affiliation: companyMap.get(exp.companyId) ?? "Company",
-      email: exp.email,
-      reason,
-      matchScore: Math.min(score, 1),
-      fieldNames: resolveFieldNames(exp.fieldIds, fieldMap),
-    }));
-}
-
-async function searchCompanies(
-  keywords: string[],
-  companyMap: Map<string, string>,
-  reason: string,
-  max: number
-): Promise<Recommendation[]> {
-  const companies = await getCompanies();
-
-  return companies
-    .map((comp) => {
-      const textScore = textMatchScore(
-        keywords,
-        comp.name,
-        comp.description,
-        comp.about,
-        ...comp.domains
-      );
-      return { comp, score: textScore };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, max)
-    .map(({ comp, score }) => ({
-      id: comp.id,
-      type: "company" as RecommendationType,
-      name: comp.name,
-      title: comp.domains.slice(0, 3).join(", "),
-      affiliation: `${comp.size} employees`,
-      email: "",
-      reason,
-      matchScore: Math.min(score, 1),
-      fieldNames: comp.domains.slice(0, 3),
-    }));
-}
-
-async function searchTopics(
-  searchFieldIds: string[],
-  keywords: string[],
-  fieldMap: Map<string, Field>,
-  uniMap: Map<string, string>,
-  companyMap: Map<string, string>,
-  reason: string,
-  max: number
-): Promise<Recommendation[]> {
-  const topics = await getTopics();
-
-  return topics
-    .map((topic) => {
-      const fieldMatch = computeMatch(searchFieldIds, topic.fieldIds);
-      const textScore = textMatchScore(keywords, topic.title, topic.description);
-      const score = fieldMatch.score * 0.6 + textScore * 0.4;
-      return { topic, score };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, max)
-    .map(({ topic, score }) => ({
-      id: topic.id,
-      type: "topic" as RecommendationType,
-      name: topic.title,
-      title: topic.type === "job" ? "Industry thesis" : "Academic thesis",
-      affiliation: topic.companyId
-        ? (companyMap.get(topic.companyId) ?? "Company")
-        : (uniMap.get(topic.universityId ?? "") ?? "University"),
-      email: "",
-      reason,
-      matchScore: Math.min(score, 1),
-      fieldNames: resolveFieldNames(topic.fieldIds, fieldMap),
-    }));
 }

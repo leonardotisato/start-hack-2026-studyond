@@ -247,6 +247,8 @@ const TYPE_ICONS: Record<string, { icon: string; color: string }> = {
   expert: { icon: "💼", color: "border-indigo-300 bg-indigo-50" },
   company: { icon: "🏢", color: "border-green-300 bg-green-50" },
   topic: { icon: "📄", color: "border-violet-300 bg-violet-50" },
+  university: { icon: "🏛️", color: "border-amber-300 bg-amber-50" },
+  program: { icon: "📚", color: "border-teal-300 bg-teal-50" },
 };
 
 function RecommendationCard({ rec }: { rec: Recommendation }) {

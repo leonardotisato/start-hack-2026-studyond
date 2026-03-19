@@ -98,13 +98,19 @@ YES — set "recommend" when:
 • Student needs data or funding ("where can I get real-world data?")
 • Student needs company contacts ("any companies doing NLP research?")
 • Student wants to find a thesis topic ("can you suggest topics in my area?")
+• Student asks about universities or programs ("which universities have strong AI research?")
+• Student needs any kind of resource, contact, or information that might exist in the platform data
 
-recommend schema: { "type": "supervisor"|"expert"|"company"|"topic", "reason": "why", "keywords": ["specific", "topic", "terms"] }
+recommend schema: { "type": "supervisor"|"expert"|"company"|"topic"|"university"|"program"|"all", "reason": "why", "keywords": ["specific", "topic", "terms"] }
 - supervisor = academic professor
-- expert = industry professional
+- expert = industry professional at a company
 - company = company for data/funding/partnership
-- topic = existing thesis proposal
+- topic = existing thesis proposal or job listing
+- university = institution for collaboration or exchange
+- program = study program (MSc, BSc, PhD)
+- all = search EVERYTHING — use this when the request is broad or could match multiple entity types
 - Keywords must be SPECIFIC to the domain (e.g. ["natural language processing", "transformer models"] not ["help", "research"])
+- When in doubt, use "all" to cast a wide net across supervisors, experts, companies, topics, universities, and programs
 
 NO — set "recommend": null when:
 • Student is modifying the graph, chatting, or asking general advice

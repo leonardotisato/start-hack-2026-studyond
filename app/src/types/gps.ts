@@ -70,10 +70,10 @@ export interface GpsAgentResponse {
 
 // -- Recommendations (sub-agent results) --
 
-export type RecommendationType = "supervisor" | "expert" | "company" | "topic";
+export type RecommendationType = "supervisor" | "expert" | "company" | "topic" | "university" | "program";
 
 export interface RecommendationRequest {
-  type: RecommendationType;
+  type: RecommendationType | "all";
   reason: string; // brief explanation of why the user needs this
   keywords: string[]; // search terms for matching
 }

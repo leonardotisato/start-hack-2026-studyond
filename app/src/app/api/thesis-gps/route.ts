@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
       // Run sub-agent if the agent requested recommendations
       if (proposal.recommend) {
-        await emit({ type: "status", text: "Searching for people who can help..." });
+        await emit({ type: "status", text: "Studyond Scout: searching the database..." });
         try {
           const recommendations = await findRecommendations(proposal.recommend, projectId);
           if (recommendations.length > 0) {
