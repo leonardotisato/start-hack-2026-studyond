@@ -51,7 +51,7 @@ export function ExpertCard({
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-3 min-w-0">
-              <Avatar className="shrink-0">
+              <Avatar size="lg" className="shrink-0">
                 <AvatarImage
                   src={getAvatarUrl(expert.firstName, expert.lastName)}
                   alt={`${expert.firstName} ${expert.lastName}`}
@@ -144,7 +144,7 @@ export function ExpertCard({
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-4">
-              <Avatar size="lg" className="shrink-0">
+              <Avatar size="lg" className="size-16 shrink-0">
                 <AvatarImage
                   src={getAvatarUrl(expert.firstName, expert.lastName)}
                   alt={`${expert.firstName} ${expert.lastName}`}
