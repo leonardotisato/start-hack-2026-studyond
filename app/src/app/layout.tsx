@@ -30,6 +30,7 @@ const NAV_LINKS = [
   { href: "/orientation", label: "Orientation" },
   { href: "/planner", label: "Planner" },
   { href: "/thesis-gps", label: "Thesis GPS" },
+  { href: "/planner", label: "Thesis GPS" },
 ];
 
 export default function RootLayout({
