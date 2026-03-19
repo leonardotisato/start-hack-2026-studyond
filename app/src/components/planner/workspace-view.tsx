@@ -98,6 +98,8 @@ function deriveEventsFromGraph(
 
 interface WorkspaceViewProps {
   projectId: string;
+  studentName?: string;
+  projectTitle?: string;
 }
 
 // --- Session storage helpers (persist across navigation, reset on app restart) ---
@@ -124,7 +126,7 @@ function saveSession(key: string, value: unknown) {
   } catch { /* quota exceeded — ignore */ }
 }
 
-export function WorkspaceView({ projectId }: WorkspaceViewProps) {
+export function WorkspaceView({ projectId, studentName, projectTitle }: WorkspaceViewProps) {
   const [graph, setGraph] = useState<GpsGraph>(() =>
     loadSession(STORAGE_KEYS.graph, DEFAULT_GRAPH)
   );
@@ -198,8 +200,50 @@ export function WorkspaceView({ projectId }: WorkspaceViewProps) {
     [computedNodes, graph.edges]
   );
 
+  // Overall progress: completed subtasks / total subtasks across all nodes
+  const { totalDone, totalSubtasks } = useMemo(() => {
+    let done = 0;
+    let total = 0;
+    for (const node of graph.nodes) {
+      const count = node.subtasks?.length ?? 0;
+      total += count;
+      done += Math.min((completedSubtasks[node.id] ?? []).length, count);
+    }
+    return { totalDone: done, totalSubtasks: total };
+  }, [graph.nodes, completedSubtasks]);
+
+  const progressPercent = totalSubtasks > 0 ? Math.round((totalDone / totalSubtasks) * 100) : 0;
+
   return (
     <div className="space-y-6">
+      {/* Header: title + progress bar */}
+      <div className="flex items-center justify-between gap-6">
+        <div className="shrink-0">
+          <h1 className="text-3xl font-bold leading-tight">Thesis Workspace</h1>
+          {(studentName || projectTitle) && (
+            <p className="text-muted-foreground text-sm mt-0.5">
+              {studentName}{studentName && projectTitle ? " \u2014 " : ""}{projectTitle}
+            </p>
+          )}
+        </div>
+        <div className="flex-1 max-w-md">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Overall progress</span>
+            <span className="text-xs font-semibold tabular-nums">{progressPercent}%</span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${progressPercent}%`,
+                background: "linear-gradient(to right, #6366f1, #8b5cf6, #a855f7)",
+              }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">{totalDone} of {totalSubtasks} tasks completed</p>
+        </div>
+      </div>
+
       {/* GPS Graph */}
       <ThesisGpsView
         projectId={projectId}
