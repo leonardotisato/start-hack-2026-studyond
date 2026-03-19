@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { runScoutAgent } from "@/lib/gps-scout-agent";
-import { ragSearch } from "@/lib/rag";
+import { createToolSession, picksToRecommendations } from "@/lib/mcp-tools";
 import { getProject, getStudent, getTopic, getSupervisor } from "@/lib/data";
 import type { ScoutAgentRequest } from "@/types/gps";
 
@@ -10,7 +10,15 @@ function sseEvent(data: object): string {
 
 export async function POST(req: NextRequest) {
   const body: ScoutAgentRequest = await req.json();
-  const { projectId, nodeId, userMessage, graph, completedSubtasks, conversationHistory, currentSuggestions } = body;
+  const {
+    projectId,
+    nodeId,
+    userMessage,
+    graph,
+    completedSubtasks,
+    conversationHistory,
+    currentSuggestions,
+  } = body;
 
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
@@ -39,28 +47,64 @@ export async function POST(req: NextRequest) {
       const [student, topic, supervisor] = await Promise.all([
         getStudent(project.studentId),
         project.topicId ? getTopic(project.topicId) : null,
-        project.supervisorIds.length > 0 ? getSupervisor(project.supervisorIds[0]) : null,
+        project.supervisorIds.length > 0
+          ? getSupervisor(project.supervisorIds[0])
+          : null,
       ]);
 
       await emit({ type: "status", text: "Thinking..." });
 
+      const toolSession = createToolSession();
+
+      const onToolCall = async (
+        name: string,
+        _input: Record<string, unknown>,
+        _result: string,
+      ) => {
+        if (name === "search_database") {
+          await emit({
+            type: "status",
+            text: "Searching the Studyond database...",
+          });
+        } else if (name === "select_recommendations") {
+          const picks = toolSession.getSelectedPicks();
+          if (picks.length > 0) {
+            const searchResults = toolSession.getLastSearchResults();
+            const recommendations = picksToRecommendations(
+              picks,
+              searchResults,
+            );
+            if (recommendations.length > 0) {
+              await emit({ type: "recommendations", recommendations });
+            }
+          }
+        }
+      };
+
       let proposal;
       try {
         await new Promise((r) => setTimeout(r, 300));
-        proposal = await runScoutAgent({
-          node,
-          graph,
-          project,
-          student,
-          topic,
-          supervisor,
-          userMessage,
-          completedSubtasks: completedSubtasks ?? {},
-          conversationHistory: conversationHistory ?? [],
-          currentSuggestions: currentSuggestions ?? [],
-        });
+        proposal = await runScoutAgent(
+          {
+            node,
+            graph,
+            project,
+            student,
+            topic,
+            supervisor,
+            userMessage,
+            completedSubtasks: completedSubtasks ?? {},
+            conversationHistory: conversationHistory ?? [],
+            currentSuggestions: currentSuggestions ?? [],
+          },
+          toolSession,
+          onToolCall,
+        );
       } catch (err: unknown) {
-        console.error("Scout agent error:", err instanceof Error ? err.message : err);
+        console.error(
+          "Scout agent error:",
+          err instanceof Error ? err.message : err,
+        );
         await emit({
           type: "done",
           proposal: {
@@ -70,33 +114,19 @@ export async function POST(req: NextRequest) {
             addEdges: [],
             removeEdgeIds: [],
             completeSubtasks: [],
-            message: "Sorry, I had trouble processing that. Could you rephrase?",
+            message:
+              "Sorry, I had trouble processing that. Could you rephrase?",
           },
         });
         return;
       }
 
-      if (proposal.recommend) {
-        await emit({ type: "status", text: "Searching the Studyond database..." });
-        try {
-          const recommendations = await ragSearch(proposal.recommend, projectId);
-          if (recommendations.length > 0) {
-            await emit({ type: "recommendations", recommendations });
-          } else {
-            await emit({
-              type: "noResults",
-              searchType: proposal.recommend.type,
-              reason: proposal.recommend.reason,
-            });
-          }
-        } catch (err) {
-          console.error("Scout recommendation error:", err);
-        }
-      }
-
       await emit({ type: "done", proposal });
     } catch (err) {
-      await emit({ type: "error", text: "Something went wrong. Please try again." });
+      await emit({
+        type: "error",
+        text: "Something went wrong. Please try again.",
+      });
       console.error(err);
     } finally {
       await writer.close();

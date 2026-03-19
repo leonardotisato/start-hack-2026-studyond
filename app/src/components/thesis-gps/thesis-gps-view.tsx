@@ -19,7 +19,17 @@ import "@xyflow/react/dist/style.css";
 import { gpsNodeTypes, type GpsNodeData, type ScoutNodeData } from "./gps-node";
 import { NodeDetailPanel } from "./node-detail-panel";
 import { GpsChatPanel, type ChatMessage } from "./gps-chat-panel";
-import type { GpsGraph, GpsNode, GpsEdge, GpsProposal, ProposedEvent, Recommendation, ScoutMessage, ContextSource, ScoutConversationAttachment } from "@/types/gps";
+import type {
+  GpsGraph,
+  GpsNode,
+  GpsEdge,
+  GpsProposal,
+  ProposedEvent,
+  Recommendation,
+  ScoutMessage,
+  ContextSource,
+  ScoutConversationAttachment,
+} from "@/types/gps";
 import type { WorkspaceEvent } from "@/components/planner/workspace-view";
 import {
   computeNodeStates,
@@ -386,7 +396,10 @@ function ThesisGpsViewInner({
   useEffect(() => {
     if (!showSupervisorInbox) return;
     function handleClick(e: MouseEvent) {
-      if (supervisorInboxRef.current && !supervisorInboxRef.current.contains(e.target as globalThis.Node)) {
+      if (
+        supervisorInboxRef.current &&
+        !supervisorInboxRef.current.contains(e.target as globalThis.Node)
+      ) {
         setShowSupervisorInbox(false);
       }
     }
@@ -404,6 +417,10 @@ function ThesisGpsViewInner({
     // Don't select scout result nodes — they're not part of the main graph
     if (node.id.startsWith("scout-")) return;
     setSelectedNodeId(node.id);
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null);
   }, []);
 
   const handleToggle = useCallback(
@@ -960,7 +977,16 @@ function ThesisGpsViewInner({
             if (hasChanges) {
               setPendingProposal(proposal);
               if (hasGraphChanges) {
-                setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded, proposal));
+                setNodes(
+                  toFlowNodes(
+                    computedNodes,
+                    positions,
+                    completedSubtasks,
+                    graph,
+                    recentlyAdded,
+                    proposal,
+                  ),
+                );
                 setEdges(toFlowEdges(graph.edges, computedNodes, proposal));
               }
             }
@@ -1026,9 +1052,15 @@ function ThesisGpsViewInner({
       }
     }
 
-    if (pendingProposal.addEvents && pendingProposal.addEvents.length > 0 && onAddEvents) {
+    if (
+      pendingProposal.addEvents &&
+      pendingProposal.addEvents.length > 0 &&
+      onAddEvents
+    ) {
       onAddEvents(pendingProposal.addEvents);
-      const eventLabels = pendingProposal.addEvents.map((e) => e.label).join(", ");
+      const eventLabels = pendingProposal.addEvents
+        .map((e) => e.label)
+        .join(", ");
       parts.push(`Scheduled: ${eventLabels}`);
     }
 
@@ -1099,7 +1131,12 @@ function ThesisGpsViewInner({
                   className="relative group"
                 >
                   <div className="size-7 rounded-full bg-slate-500 flex items-center justify-center text-[11px] font-semibold text-white ring-2 ring-red-400 ring-offset-1 ring-offset-background cursor-pointer">
-                    {supervisorName.replace(/^(Prof\.|Dr\.|Mr\.|Ms\.)\s*/i, "").split(" ").map((w) => w[0]).join("").slice(0, 2)}
+                    {supervisorName
+                      .replace(/^(Prof\.|Dr\.|Mr\.|Ms\.)\s*/i, "")
+                      .split(" ")
+                      .map((w) => w[0])
+                      .join("")
+                      .slice(0, 2)}
                   </div>
                   <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 border-2 border-background" />
                   {pendingMeetings.length > 0 && (
@@ -1110,9 +1147,15 @@ function ThesisGpsViewInner({
                   <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
                     <div className="bg-gray-900 text-white text-[11px] rounded-md px-2.5 py-1.5 shadow-lg">
                       <p className="font-medium">{supervisorName}</p>
-                      <p className="text-red-400 text-[10px]">Last seen 2 hours ago</p>
+                      <p className="text-red-400 text-[10px]">
+                        Last seen 2 hours ago
+                      </p>
                       {pendingMeetings.length > 0 && (
-                        <p className="text-amber-400 text-[10px]">{pendingMeetings.length} pending request{pendingMeetings.length !== 1 ? "s" : ""} — click to open</p>
+                        <p className="text-amber-400 text-[10px]">
+                          {pendingMeetings.length} pending request
+                          {pendingMeetings.length !== 1 ? "s" : ""} — click to
+                          open
+                        </p>
                       )}
                     </div>
                   </div>
@@ -1123,32 +1166,50 @@ function ThesisGpsViewInner({
                   <div className="absolute left-0 top-full mt-2 w-80 bg-background border rounded-lg shadow-xl z-[100] overflow-hidden">
                     <div className="flex items-center gap-2.5 px-3 py-2.5 bg-slate-50 border-b">
                       <div className="size-6 rounded-full bg-slate-600 flex items-center justify-center text-[10px] font-semibold text-white">
-                        {supervisorName.replace(/^(Prof\.|Dr\.|Mr\.|Ms\.)\s*/i, "").split(" ").map((w) => w[0]).join("").slice(0, 2)}
+                        {supervisorName
+                          .replace(/^(Prof\.|Dr\.|Mr\.|Ms\.)\s*/i, "")
+                          .split(" ")
+                          .map((w) => w[0])
+                          .join("")
+                          .slice(0, 2)}
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-slate-800">{supervisorName}</p>
-                        <p className="text-[10px] text-slate-500">Inbox — meeting requests</p>
+                        <p className="text-xs font-semibold text-slate-800">
+                          {supervisorName}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          Inbox — meeting requests
+                        </p>
                       </div>
                     </div>
                     {pendingMeetings.length === 0 ? (
-                      <p className="px-3 py-4 text-xs text-muted-foreground text-center">No pending requests</p>
+                      <p className="px-3 py-4 text-xs text-muted-foreground text-center">
+                        No pending requests
+                      </p>
                     ) : (
                       <div className="divide-y max-h-64 overflow-y-auto">
                         {pendingMeetings.map((ev) => (
                           <div key={ev.id} className="px-3 py-2.5">
                             <p className="text-xs font-medium">{ev.label}</p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {ev.date}{ev.attendees && ev.attendees.length > 0 ? ` · ${ev.attendees.join(", ")}` : ""}
+                              {ev.date}
+                              {ev.attendees && ev.attendees.length > 0
+                                ? ` · ${ev.attendees.join(", ")}`
+                                : ""}
                             </p>
                             <div className="flex gap-1.5 mt-2">
                               <button
-                                onClick={() => { onResolveMeeting?.(ev.id, "approved"); }}
+                                onClick={() => {
+                                  onResolveMeeting?.(ev.id, "approved");
+                                }}
                                 className="flex-1 rounded-md bg-green-600 text-white text-[11px] font-medium py-1 hover:bg-green-700 transition"
                               >
                                 Accept
                               </button>
                               <button
-                                onClick={() => { onResolveMeeting?.(ev.id, "rejected"); }}
+                                onClick={() => {
+                                  onResolveMeeting?.(ev.id, "rejected");
+                                }}
                                 className="flex-1 rounded-md border border-gray-300 text-[11px] font-medium py-1 hover:bg-gray-100 transition"
                               >
                                 Decline
@@ -1228,6 +1289,7 @@ function ThesisGpsViewInner({
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onNodeClick={onNodeClick}
+              onPaneClick={onPaneClick}
               nodeTypes={gpsNodeTypes}
               minZoom={0.3}
               maxZoom={1.5}
