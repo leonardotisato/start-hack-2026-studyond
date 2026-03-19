@@ -42,6 +42,12 @@ export function ExpertCard({
   const sharedSet = new Set(sharedFieldIds);
   const matchPercent = Math.round(matchScore * 100);
 
+  function matchBadgeClass(pct: number) {
+    if (pct >= 70) return "bg-emerald-100 text-emerald-700 border-emerald-200";
+    if (pct >= 40) return "bg-amber-100 text-amber-700 border-amber-200";
+    return "bg-secondary text-secondary-foreground";
+  }
+
   return (
     <>
       <Card
@@ -49,38 +55,40 @@ export function ExpertCard({
         onClick={() => setDetailOpen(true)}
       >
         <CardHeader className="pb-2">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-3 min-w-0">
-              <Avatar size="lg" className="shrink-0">
-                <AvatarImage
-                  src={getAvatarUrl(expert.firstName, expert.lastName)}
-                  alt={`${expert.firstName} ${expert.lastName}`}
-                />
-                <AvatarFallback>
-                  {expert.firstName[0]}
-                  {expert.lastName[0]}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <CardTitle className="text-base">
-                  {expert.firstName} {expert.lastName}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground truncate">
-                  {expert.title} &middot; {company?.name ?? "Independent"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {expert.offerInterviews && (
-                <span className="flex items-center gap-1 text-xs text-emerald-600">
-                  <span className="inline-block size-2 rounded-full bg-emerald-500" />
-                  Interviews
-                </span>
-              )}
-              {matchPercent > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  {matchPercent}% match
-                </Badge>
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar size="lg" className="shrink-0">
+              <AvatarImage
+                src={getAvatarUrl(expert.firstName, expert.lastName)}
+                alt={`${expert.firstName} ${expert.lastName}`}
+              />
+              <AvatarFallback>
+                {expert.firstName[0]}
+                {expert.lastName[0]}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <CardTitle className="text-base">
+                {expert.firstName} {expert.lastName}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground truncate">
+                {expert.title} &middot; {company?.name ?? "Independent"}
+              </p>
+              {(expert.offerInterviews || matchPercent > 0) && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                  {expert.offerInterviews && (
+                    <span className="flex items-center gap-1 text-xs text-emerald-600">
+                      <span className="inline-block size-2 rounded-full bg-emerald-500" />
+                      Interviews
+                    </span>
+                  )}
+                  {matchPercent > 0 && (
+                    <Badge
+                      className={`text-xs ${matchBadgeClass(matchPercent)}`}
+                    >
+                      {matchPercent}% match
+                    </Badge>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -112,6 +120,7 @@ export function ExpertCard({
             <Button
               variant="outline"
               size="sm"
+              className="bg-ai text-white border-0 hover:opacity-90"
               onClick={() => onIcebreaker(expert.id)}
             >
               Conversation Starters
@@ -174,7 +183,9 @@ export function ExpertCard({
                 </span>
               )}
               {matchPercent > 0 && (
-                <Badge variant="secondary">{matchPercent}% field match</Badge>
+                <Badge className={matchBadgeClass(matchPercent)}>
+                  {matchPercent}% field match
+                </Badge>
               )}
             </div>
 

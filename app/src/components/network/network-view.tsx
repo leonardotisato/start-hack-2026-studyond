@@ -10,12 +10,20 @@ import {
 } from "@/components/network/network-filters";
 import { IntroRequestDialog } from "@/components/network/intro-request-dialog";
 import { IcebreakerPanel } from "@/components/network/icebreaker-panel";
-import type { Expert, Supervisor, Company, Field, Student } from "@/types";
+import type {
+  Expert,
+  Supervisor,
+  Company,
+  Field,
+  Student,
+  University,
+} from "@/types";
 
 interface NetworkViewProps {
   experts: Expert[];
   supervisors: Supervisor[];
   companies: Company[];
+  universities: University[] | undefined;
   fields: Field[];
   student: Student;
 }
@@ -28,6 +36,7 @@ export function NetworkView({
   experts,
   supervisors,
   companies,
+  universities,
   fields,
   student,
 }: NetworkViewProps) {
@@ -49,6 +58,10 @@ export function NetworkView({
   const companyMap = useMemo(
     () => new Map(companies.map((c) => [c.id, c])),
     [companies],
+  );
+  const universityMap = useMemo(
+    () => new Map((universities ?? []).map((u) => [u.id, u])),
+    [universities],
   );
   const fieldMap = useMemo(
     () => new Map(fields.map((f) => [f.id, f])),
@@ -203,8 +216,8 @@ export function NetworkView({
               key={sup.id}
               expert={fakeExpert}
               company={{
-                id: "",
-                name: "University",
+                id: sup.universityId,
+                name: universityMap.get(sup.universityId)?.name ?? "University",
                 description: "",
                 about: null,
                 size: "",
