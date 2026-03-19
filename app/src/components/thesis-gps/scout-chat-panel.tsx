@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Mic, ArrowUp, Square } from "lucide-react";
 import type { ScoutMessage, GpsProposal } from "@/types/gps";
+import { formatBold } from "./format-bold";
 
 interface ScoutChatPanelProps {
   nodeLabel: string;
@@ -172,7 +173,7 @@ export function ScoutChatPanel({
                     : "bg-violet-50 border border-violet-200 mr-4"
                 }`}
               >
-                {msg.content}
+                {formatBold(msg.content)}
               </div>
 
               {/* Proposal buttons */}

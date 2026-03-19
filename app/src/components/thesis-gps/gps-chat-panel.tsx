@@ -12,6 +12,7 @@ import type {
 import { CONTEXT_SOURCE_META } from "@/types/gps";
 import { Mic, ArrowUp, Square } from "lucide-react";
 import { RecommendationCard } from "./recommendation-card";
+import { formatBold } from "./format-bold";
 
 interface ChatMessage {
   role: "user" | "agent";
@@ -215,7 +216,7 @@ export function GpsChatPanel({
                     : "bg-muted mr-6"
                 }`}
               >
-                {msg.content}
+                {formatBold(msg.content)}
               </div>
               {msg.hasProposal &&
                 pendingProposal &&
@@ -432,11 +433,14 @@ export function GpsChatPanel({
                     <div className="text-xs">
                       <p className="font-semibold text-blue-900">{ev.label}</p>
                       <p className="text-blue-800/70">
-                        {ev.date} · <span className="capitalize">{ev.type}</span>
+                        {ev.date} ·{" "}
+                        <span className="capitalize">{ev.type}</span>
                         {ev.type === "meeting" && " (requires approval)"}
                       </p>
                       {ev.attendees && ev.attendees.length > 0 && (
-                        <p className="text-blue-800/70">With: {ev.attendees.join(", ")}</p>
+                        <p className="text-blue-800/70">
+                          With: {ev.attendees.join(", ")}
+                        </p>
                       )}
                     </div>
                   </div>
