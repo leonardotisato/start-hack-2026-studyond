@@ -16,29 +16,6 @@ The wide layout shows the full thesis journey alongside the Kanban task board an
 
 ![Thesis GPS wide layout](screenshots/planner-wide.png)
 
-What the graph looks like at runtime:
-
-```mermaid
-graph LR
-    A([✅ Topic Confirmed]) --> B([✅ Literature Review])
-    B --> C([⚡ Methodology Design])
-    C --> D([🔒 Data Collection])
-    C --> E([📅 Company Case Study])
-    D --> F([📅 Analysis & Results])
-    E --> F
-    F --> G([📅 Final Write-up])
-
-    style A fill:#22c55e,color:#fff,stroke:none
-    style B fill:#22c55e,color:#fff,stroke:none
-    style C fill:#3b82f6,color:#fff,stroke:none
-    style D fill:#ef4444,color:#fff,stroke:none
-    style E fill:#94a3b8,color:#fff,stroke:none
-    style F fill:#94a3b8,color:#fff,stroke:none
-    style G fill:#94a3b8,color:#fff,stroke:none
-```
-
-> ✅ completed · ⚡ active · 🔒 blocked · 📅 upcoming
-
 ---
 
 ## ⚙️ System Strengths
