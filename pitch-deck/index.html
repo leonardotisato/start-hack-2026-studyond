@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studyond — START Hack 2026</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --black: #1a1a1a;
+    --white: #ffffff;
+    --gray: #6b7280;
+    --light: #f9fafb;
+    --border: #e5e7eb;
+    --blue: #3b82f6;
+    --emerald: #10b981;
+    --violet: #8b5cf6;
+    --gradient: linear-gradient(135deg, #8b5cf6, #3b82f6);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: #000;
+    overflow: hidden;
+  }
+
+  .deck {
+    width: 100%; height: 100%;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+
+  .slide.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Navigation */
+  .nav {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 1000;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    border-radius: 40px;
+    padding: 10px 20px;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .nav button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+
+  .nav button:hover { background: rgba(255,255,255,0.15); }
+  .nav button:disabled { opacity: 0.3; cursor: default; }
+
+  .nav-counter {
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    min-width: 50px;
+    text-align: center;
+  }
+
+  .nav-dots {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .dot.active {
+    background: white;
+    width: 18px;
+    border-radius: 3px;
+  }
+
+  /* ============ SLIDE STYLES ============ */
+
+  /* Slide 1 — Hero */
+  .s1 {
+    background: #0a0a0a;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 0;
+  }
+
+  .s1-badge {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 32px;
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 6px 18px;
+    border-radius: 40px;
+  }
+
+  .s1-logo {
+    font-size: 88px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -4px;
+    line-height: 1;
+    margin-bottom: 24px;
+  }
+
+  .s1-tagline {
+    font-size: 28px;
+    font-weight: 400;
+    color: rgba(255,255,255,0.5);
+    max-width: 560px;
+    line-height: 1.5;
+    margin-bottom: 60px;
+  }
+
+  .s1-tagline span {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 600;
+  }
+
+  .s1-stats {
+    display: flex;
+    gap: 60px;
+  }
+
+  .s1-stat-num {
+    font-size: 36px;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .s1-stat-label {
+    font-size: 13px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .s1-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255,255,255,0.12);
+    align-self: center;
+  }
+
+  /* Slide 2 — Problem */
+  .s2 {
+    background: var(--white);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px;
+    gap: 64px;
+  }
+
+  .slide-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gray);
+  }
+
+  .big-heading {
+    font-size: 56px;
+    font-weight: 800;
+    color: var(--black);
+    text-align: center;
+    line-height: 1.15;
+    max-width: 800px;
+  }
+
+  .big-heading em {
+    font-style: normal;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .cards-row {
+    display: flex;
+    gap: 32px;
+  }
+
+  .pain-card {
+    width: 300px;
+    padding: 36px 28px;
+    background: var(--light);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+
+  .pain-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    background: var(--black);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+
+  .pain-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--black);
+    margin-bottom: 8px;
+  }
+
+  .pain-desc {
+    font-size: 14px;
+    color: var(--gray);
+    line-height: 1.6;
+  }
+
+  /* Slide 3 — Solution overview */
+  .s3 {
+    background: var(--light);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 80px;
+    gap: 40px;
+  }
+
+  .s3-header {
+    text-align: center;
+  }
+
+  .s3-title {
+    font-size: 48px;
+    font-weight: 800;
+    color: var(--black);
+    margin-bottom: 12px;
+  }
+
+  .s3-sub {
+    font-size: 20px;
+    color: var(--gray);
+  }
+
+  .browser-frame {
+    width: 100%;
+    max-width: 1100px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.15);
+    border: 1px solid var(--border);
+  }
+
+  .browser-bar {
+    background: #f3f4f6;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .browser-dot { width: 11px; height: 11px; border-radius: 50%; }
+
+  .browser-url {
+    margin-left: 12px;
+    background: white;
+    border-radius: 6px;
+    padding: 4px 16px;
+    font-size: 12px;
+    color: var(--gray);
+    flex: 1;
+    max-width: 400px;
+  }
+
+  .browser-frame img {
+    width: 100%;
+    display: block;
+  }
+
+  /* Slide 4 — Thesis GPS (hero) */
+  .s4 {
+    background: var(--white);
+    flex-direction: row;
+  }
+
+  .s-left {
+    width: 420px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 60px;
+    gap: 24px;
+    border-right: 1px solid var(--border);
+  }
+
+  .feature-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 40px;
+    width: fit-content;
+  }
+
+  .feature-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #3b82f6;
+  }
+
+  .feature-title {
+    font-size: 44px;
+    font-weight: 800;
+    color: var(--black);
+    line-height: 1.1;
+  }
+
+  .feature-desc {
+    font-size: 17px;
+    color: var(--gray);
+    line-height: 1.7;
+  }
+
+  .bullet-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bullet-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 15px;
+    color: var(--black);
+  }
+
+  .bullet-check {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #ecfdf5;
+    border: 1.5px solid #34d399;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-size: 10px;
+    color: #065f46;
+  }
+
+  .s-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    background: var(--light);
+  }
+
+  .screenshot-shadow {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+    border: 1px solid var(--border);
+    max-height: 85vh;
+    width: 100%;
+  }
+
+  .screenshot-shadow img {
+    width: 100%;
+    display: block;
+  }
+
+  /* Slide 5 — Orientation */
+  .s5 {
+    background: var(--white);
+    flex-direction: row-reverse;
+  }
+
+  /* Slide 6 — Profile */
+  .s6 {
+    background: var(--white);
+    flex-direction: row;
+  }
+
+  /* Slide 7 — Network */
+  .s7 {
+    background: var(--white);
+    flex-direction: row-reverse;
+  }
+
+  /* Feature badge colors */
+  .badge-violet {
+    background: #f5f3ff;
+    color: #6d28d9;
+  }
+  .badge-violet .feature-dot { background: #8b5cf6; }
+
+  .badge-emerald {
+    background: #ecfdf5;
+    color: #065f46;
+  }
+  .badge-emerald .feature-dot { background: #10b981; }
+
+  .badge-amber {
+    background: #fffbeb;
+    color: #92400e;
+  }
+  .badge-amber .feature-dot { background: #f59e0b; }
+
+  /* Slide 8 — Tech */
+  .s8 {
+    background: #0a0a0a;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px;
+    gap: 60px;
+  }
+
+  .s8-title {
+    font-size: 48px;
+    font-weight: 800;
+    color: white;
+    text-align: center;
+  }
+
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    max-width: 900px;
+    width: 100%;
+  }
+
+  .tech-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-align: center;
+  }
+
+  .tech-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+  }
+
+  .tech-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 6px;
+  }
+
+  .tech-role {
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    line-height: 1.5;
+  }
+
+  /* Slide 9 — What we built */
+  .s9 {
+    background: var(--light);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 80px;
+    gap: 48px;
+  }
+
+  .metrics-row {
+    display: flex;
+    gap: 48px;
+  }
+
+  .metric-card {
+    width: 200px;
+    padding: 32px 24px;
+    background: white;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+
+  .metric-num {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--black);
+    margin-bottom: 6px;
+  }
+
+  .metric-num.gradient {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .metric-label {
+    font-size: 13px;
+    color: var(--gray);
+    line-height: 1.5;
+  }
+
+  /* Slide 10 — CTA */
+  .s10 {
+    background: #0a0a0a;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    text-align: center;
+    padding: 80px;
+  }
+
+  .cta-eyebrow {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+  }
+
+  .cta-headline {
+    font-size: 72px;
+    font-weight: 800;
+    color: white;
+    line-height: 1.05;
+    letter-spacing: -2px;
+  }
+
+  .cta-headline span {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .cta-sub {
+    font-size: 22px;
+    color: rgba(255,255,255,0.45);
+    max-width: 560px;
+  }
+
+  .cta-btn {
+    display: inline-block;
+    padding: 18px 48px;
+    background: white;
+    color: black;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 40px;
+    letter-spacing: 0.02em;
+    margin-top: 8px;
+  }
+
+  .cta-team {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+  }
+
+  .cta-member {
+    font-size: 14px;
+    color: rgba(255,255,255,0.35);
+  }
+
+  .slide-number {
+    position: absolute;
+    top: 28px;
+    right: 36px;
+    font-size: 12px;
+    color: rgba(0,0,0,0.2);
+    font-weight: 500;
+  }
+
+  .slide-number.light {
+    color: rgba(255,255,255,0.2);
+  }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- Slide 1: Hero -->
+  <div class="slide s1 active" id="slide-0">
+    <span class="slide-number light">01 / 10</span>
+    <div class="s1-badge">START Hack 2026 &nbsp;·&nbsp; ETH Zurich</div>
+    <div class="s1-logo">Studyond</div>
+    <div class="s1-tagline">
+      The <span>AI-powered</span> platform for students —<br>from thesis to career.
+    </div>
+    <div class="s1-stats">
+      <div>
+        <div class="s1-stat-num">4</div>
+        <div class="s1-stat-label">AI Modules</div>
+      </div>
+      <div class="s1-divider"></div>
+      <div>
+        <div class="s1-stat-num">1M+</div>
+        <div class="s1-stat-label">Thesis Students</div>
+      </div>
+      <div class="s1-divider"></div>
+      <div>
+        <div class="s1-stat-num">0</div>
+        <div class="s1-stat-label">Existing Solutions</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 2: Problem -->
+  <div class="slide s2" id="slide-1">
+    <span class="slide-number">02 / 10</span>
+    <div class="slide-label">The Problem</div>
+    <div class="big-heading">
+      Every year, thousands of students start<br>their thesis journey <em>completely alone.</em>
+    </div>
+    <div class="cards-row">
+      <div class="pain-card">
+        <div class="pain-icon">?</div>
+        <div class="pain-title">No Structured Guidance</div>
+        <div class="pain-desc">Students piece together advice from scattered sources, blogs, and outdated handbooks.</div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">✉</div>
+        <div class="pain-title">Email Overload</div>
+        <div class="pain-desc">Endless back-and-forth with supervisors for questions that could be answered instantly.</div>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">#</div>
+        <div class="pain-title">Manual Tracking</div>
+        <div class="pain-desc">Spreadsheets and sticky notes to manage months of complex, interdependent work.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 3: Solution Overview -->
+  <div class="slide s3" id="slide-2">
+    <span class="slide-number">03 / 10</span>
+    <div class="s3-header">
+      <div class="slide-label" style="margin-bottom:12px">Our Solution</div>
+      <div class="s3-title">One platform. Four AI agents.</div>
+      <div class="s3-sub">Everything a student needs from first idea to final submission.</div>
+    </div>
+    <div class="browser-frame">
+      <div class="browser-bar">
+        <div class="browser-dot" style="background:#ef4444"></div>
+        <div class="browser-dot" style="background:#f59e0b"></div>
+        <div class="browser-dot" style="background:#22c55e"></div>
+        <div class="browser-url">localhost:3000</div>
+      </div>
+      <img src="../screenshots/home.png" alt="Studyond home page">
+    </div>
+  </div>
+
+  <!-- Slide 4: Thesis GPS -->
+  <div class="slide s4" id="slide-3">
+    <span class="slide-number">04 / 10</span>
+    <div class="s-left">
+      <div class="feature-badge">
+        <div class="feature-dot"></div>
+        Feature 01
+      </div>
+      <div class="feature-title">Thesis GPS Navigator</div>
+      <div class="feature-desc">
+        Your entire thesis mapped as a dynamic AI pipeline — every milestone, dependency, and deadline visible at a glance.
+      </div>
+      <ul class="bullet-list">
+        <li>
+          <div class="bullet-check">✓</div>
+          <span>DAG pipeline graph with live status tracking</span>
+        </li>
+        <li>
+          <div class="bullet-check">✓</div>
+          <span>AI agent that restructures the graph on demand</span>
+        </li>
+        <li>
+          <div class="bullet-check">✓</div>
+          <span>Task board: Upcoming · Active · Completed</span>
+        </li>
+        <li>
+          <div class="bullet-check">✓</div>
+          <span>Per-node subtask checklists with progress bars</span>
+        </li>
+      </ul>
+    </div>
+    <div class="s-right">
+      <div class="screenshot-shadow">
+        <img src="../screenshots/planner-wide.png" alt="Thesis GPS Planner">
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 5: Orientation -->
+  <div class="slide s5" id="slide-4">
+    <span class="slide-number">05 / 10</span>
+    <div class="s-left">
+      <div class="feature-badge badge-violet">
+        <div class="feature-dot" style="background:#8b5cf6"></div>
+        Feature 02
+      </div>
+      <div class="feature-title">Thesis Orientation</div>
+      <div class="feature-desc">
+        Discover thesis topics and career paths matched to your background. An AI guide helps you find your direction before you commit.
+      </div>
+      <ul class="bullet-list">
+        <li>
+          <div class="bullet-check" style="background:#f5f3ff;border-color:#8b5cf6;color:#5b21b6">✓</div>
+          <span>Searchable topic catalogue (thesis &amp; jobs)</span>
+        </li>
+        <li>
+          <div class="bullet-check" style="background:#f5f3ff;border-color:#8b5cf6;color:#5b21b6">✓</div>
+          <span>AI chat for topic exploration &amp; advice</span>
+        </li>
+        <li>
+          <div class="bullet-check" style="background:#f5f3ff;border-color:#8b5cf6;color:#5b21b6">✓</div>
+          <span>Auto-generated orientation document</span>
+        </li>
+      </ul>
+    </div>
+    <div class="s-right">
+      <div class="screenshot-shadow">
+        <img src="../screenshots/orientation.png" alt="Thesis Orientation">
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 6: Profile -->
+  <div class="slide s6" id="slide-5">
+    <span class="slide-number">06 / 10</span>
+    <div class="s-left">
+      <div class="feature-badge badge-emerald">
+        <div class="feature-dot" style="background:#10b981"></div>
+        Feature 03
+      </div>
+      <div class="feature-title">Student Profile &amp; Portfolio</div>
+      <div class="feature-desc">
+        A dynamic profile that presents your skills, projects, and academic background — sorted by AI relevance for each target role.
+      </div>
+      <ul class="bullet-list">
+        <li>
+          <div class="bullet-check" style="background:#ecfdf5;border-color:#34d399;color:#065f46">✓</div>
+          <span>Unified academic + project portfolio</span>
+        </li>
+        <li>
+          <div class="bullet-check" style="background:#ecfdf5;border-color:#34d399;color:#065f46">✓</div>
+          <span>AI relevance sorting by target job/thesis</span>
+        </li>
+        <li>
+          <div class="bullet-check" style="background:#ecfdf5;border-color:#34d399;color:#065f46">✓</div>
+          <span>Skills, fields of interest &amp; objectives tagging</span>
+        </li>
+      </ul>
+    </div>
+    <div class="s-right">
+      <div class="screenshot-shadow">
+        <img src="../screenshots/profile.png" alt="Student Profile">
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 7: Network -->
+  <div class="slide s7" id="slide-6">
+    <span class="slide-number">07 / 10</span>
+    <div class="s-left">
+      <div class="feature-badge badge-amber">
+        <div class="feature-dot" style="background:#f59e0b"></div>
+        Feature 04
+      </div>
+      <div class="feature-title">Network &amp; Referrals</div>
+      <div class="feature-desc">
+        Connect with industry experts and academic supervisors — matched to your profile with conversation starters generated by AI.
+      </div>
+      <ul class="bullet-list">
+        <li>
+          <div class="bullet-check" style="background:#fffbeb;border-color:#fbbf24;color:#78350f">✓</div>
+          <span>55+ experts &amp; supervisors, 100% match scoring</span>
+        </li>
+        <li>
+          <div class="bullet-check" style="background:#fffbeb;border-color:#fbbf24;color:#78350f">✓</div>
+          <span>AI-generated conversation starters</span>
+        </li>
+        <li>
+          <div class="bullet-check" style="background:#fffbeb;border-color:#fbbf24;color:#78350f">✓</div>
+          <span>Filter by field, company, &amp; availability</span>
+        </li>
+      </ul>
+    </div>
+    <div class="s-right">
+      <div class="screenshot-shadow">
+        <img src="../screenshots/network.png" alt="Network & Referrals">
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 8: Tech Stack -->
+  <div class="slide s8" id="slide-7">
+    <span class="slide-number light">08 / 10</span>
+    <div class="s8-title" style="color:white">Built with the best tools in AI</div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tech-icon">🤖</div>
+        <div class="tech-name">Claude API</div>
+        <div class="tech-role">AI agents: orientation, GPS restructuring, profile sorting, network matching</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">⚛️</div>
+        <div class="tech-name">Next.js 16</div>
+        <div class="tech-role">React 19, App Router, Tailwind v4, server components</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🔗</div>
+        <div class="tech-name">ReactFlow</div>
+        <div class="tech-role">Interactive DAG pipeline graph with custom nodes and edges</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🎬</div>
+        <div class="tech-name">Remotion</div>
+        <div class="tech-role">Code-first demo video — 71s, 1920×1080 H.264, 7 scenes</div>
+      </div>
+    </div>
+    <div style="font-size:14px;color:rgba(255,255,255,0.25);letter-spacing:0.05em">
+      100% built during START Hack 2026 · 48 hours
+    </div>
+  </div>
+
+  <!-- Slide 9: What We Built -->
+  <div class="slide s9" id="slide-8">
+    <span class="slide-number">09 / 10</span>
+    <div class="slide-label">What we delivered</div>
+    <div class="big-heading" style="font-size:48px">A working product, in 48 hours.</div>
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-num gradient">4</div>
+        <div class="metric-label">Fully working AI-powered features</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num gradient">8</div>
+        <div class="metric-label">Thesis pipeline milestones tracked</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num gradient">55+</div>
+        <div class="metric-label">Industry experts in the network</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-num gradient">71s</div>
+        <div class="metric-label">Demo video, rendered at 1920×1080</div>
+      </div>
+    </div>
+    <div style="font-size:16px;color:var(--gray);text-align:center;max-width:680px;line-height:1.7">
+      Every page is live. Every AI agent is wired to Claude API. The graph restructures in real time.
+      The thesis pipeline adapts as you work. This is not a mockup — <strong>it's a product.</strong>
+    </div>
+  </div>
+
+  <!-- Slide 10: CTA -->
+  <div class="slide s10" id="slide-9">
+    <span class="slide-number light">10 / 10</span>
+    <div class="cta-eyebrow">START Hack 2026 · ETH Zurich</div>
+    <div class="cta-headline">
+      The thesis journey,<br><span>navigated.</span>
+    </div>
+    <div class="cta-sub">
+      Studyond gives every student the structured guidance, tools, and connections they deserve.
+    </div>
+    <div class="cta-btn">studyond.com</div>
+    <div class="cta-team">
+      <span class="cta-member">Built at START Hack 2026</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Nav -->
+<div class="nav">
+  <button id="prev" onclick="changeSlide(-1)" disabled>←</button>
+  <div class="nav-dots" id="dots"></div>
+  <button id="next" onclick="changeSlide(1)">→</button>
+</div>
+
+<script>
+  const total = 10;
+  let current = 0;
+
+  const dots = document.getElementById('dots');
+  for (let i = 0; i < total; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dots.appendChild(d);
+  }
+
+  function goTo(n) {
+    document.getElementById('slide-' + current).classList.remove('active');
+    dots.children[current].classList.remove('active');
+    current = n;
+    document.getElementById('slide-' + current).classList.add('active');
+    dots.children[current].classList.add('active');
+    document.getElementById('prev').disabled = current === 0;
+    document.getElementById('next').disabled = current === total - 1;
+  }
+
+  function changeSlide(dir) {
+    const next = current + dir;
+    if (next >= 0 && next < total) goTo(next);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') changeSlide(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') changeSlide(-1);
+  });
+</script>
+</body>
+</html>
