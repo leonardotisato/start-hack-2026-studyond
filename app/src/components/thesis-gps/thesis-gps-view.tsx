@@ -19,7 +19,7 @@ import "@xyflow/react/dist/style.css";
 import { gpsNodeTypes, type GpsNodeData } from "./gps-node";
 import { NodeDetailPanel } from "./node-detail-panel";
 import { GpsChatPanel, type ChatMessage } from "./gps-chat-panel";
-import type { GpsGraph, GpsNode, GpsEdge, GpsProposal } from "@/types/gps";
+import type { GpsGraph, GpsNode, GpsEdge, GpsProposal, Recommendation } from "@/types/gps";
 import {
   computeNodeStates,
   layoutGraph,
@@ -38,6 +38,7 @@ interface ThesisGpsViewProps {
   onGraphChange: (g: GpsGraph, addedNodeIds?: string[]) => void;
   completedSubtasks: Record<string, number[]>;
   onToggleSubtask: (nodeId: string, index: number) => void;
+  onCompleteSubtasks: (completions: Record<string, number[]>) => void;
   onChooseBranch: (chosenNodeId: string) => void;
   messages: ChatMessage[];
   onMessagesChange: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
@@ -185,6 +186,7 @@ function ThesisGpsViewInner({
   onGraphChange,
   completedSubtasks,
   onToggleSubtask,
+  onCompleteSubtasks,
   onChooseBranch,
   messages,
   onMessagesChange,
@@ -317,6 +319,7 @@ function ThesisGpsViewInner({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let pendingRecs: Recommendation[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -331,7 +334,7 @@ function ThesisGpsViewInner({
           const json = line.slice(6).trim();
           if (!json) continue;
 
-          let event: { type: string; text?: string; proposal?: GpsProposal };
+          let event: { type: string; text?: string; proposal?: GpsProposal; recommendations?: Recommendation[] };
           try { event = JSON.parse(json); } catch { continue; }
 
           if (event.type === "status" && event.text) {
@@ -341,6 +344,9 @@ function ThesisGpsViewInner({
               ...prev,
               { role: "agent", content: `Error: ${event.text ?? "Something went wrong."}` },
             ]);
+          } else if (event.type === "recommendations" && event.recommendations) {
+            // Store recommendations to attach to the agent's message when it arrives
+            pendingRecs = event.recommendations;
           } else if (event.type === "done" && event.proposal) {
             const proposal = event.proposal;
             const hasChanges =
@@ -348,11 +354,17 @@ function ThesisGpsViewInner({
               proposal.updateNodes.length > 0 ||
               proposal.removeNodeIds.length > 0 ||
               proposal.addEdges.length > 0 ||
-              proposal.removeEdgeIds.length > 0;
+              proposal.removeEdgeIds.length > 0 ||
+              (proposal.completeSubtasks?.length ?? 0) > 0;
 
             onMessagesChange((prev) => [
               ...prev,
-              { role: "agent", content: proposal.message, hasProposal: hasChanges },
+              {
+                role: "agent",
+                content: proposal.message,
+                hasProposal: hasChanges,
+                recommendations: pendingRecs.length > 0 ? pendingRecs : undefined,
+              },
             ]);
 
             if (hasChanges) {
@@ -403,6 +415,19 @@ function ThesisGpsViewInner({
       ...pendingProposal.updateNodes.map((u) => u.id),
     ];
     onGraphChange(newGraph, changedIds);
+
+    // Apply subtask completions if the agent marked any
+    if (pendingProposal.completeSubtasks && pendingProposal.completeSubtasks.length > 0) {
+      const completionMap: Record<string, number[]> = {};
+      for (const { nodeId, subtaskIndices } of pendingProposal.completeSubtasks) {
+        completionMap[nodeId] = subtaskIndices;
+      }
+      onCompleteSubtasks(completionMap);
+      if (pendingProposal.completeSubtasks.length > 0) {
+        parts.push(`Completed subtasks in: ${pendingProposal.completeSubtasks.map((c) => graph.nodes.find((n) => n.id === c.nodeId)?.label ?? c.nodeId).join(", ")}`);
+      }
+    }
+
     setPendingProposal(null);
 
     if (parts.length > 0) {

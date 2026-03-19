@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { runGpsAgent } from "@/lib/gps-agent";
 import { mockAgentProposal } from "@/lib/gps-mock";
+import { findRecommendations } from "@/lib/gps-recommend";
 import { getProject, getStudent, getTopic, getSupervisor } from "@/lib/data";
 import { DEFAULT_GRAPH } from "@/lib/gps-defaults";
 import type { GpsAgentRequest } from "@/types/gps";
@@ -68,7 +69,20 @@ export async function POST(req: NextRequest) {
         proposal = mockAgentProposal(userMessage ?? "");
       }
 
-      await emit({ type: "status", text: "Preparing your proposal..." });
+      // Run sub-agent if the agent requested recommendations
+      if (proposal.recommend) {
+        await emit({ type: "status", text: "Searching for people who can help..." });
+        try {
+          const recommendations = await findRecommendations(proposal.recommend, projectId);
+          if (recommendations.length > 0) {
+            await emit({ type: "recommendations", recommendations });
+          }
+        } catch (err) {
+          console.error("Recommendation sub-agent error:", err);
+        }
+      }
+
+      await emit({ type: "status", text: "Preparing your response..." });
       await new Promise((r) => setTimeout(r, 200));
       await emit({ type: "done", proposal });
     } catch (err) {
