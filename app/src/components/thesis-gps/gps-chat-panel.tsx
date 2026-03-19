@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import type { GpsProposal } from "@/types/gps";
 
 interface ChatMessage {
   role: "user" | "agent";
@@ -14,7 +15,9 @@ interface GpsChatPanelProps {
   messages: ChatMessage[];
   onSend: (message: string) => void;
   isLoading: boolean;
+  statusSteps: string[];
   pendingProposal: boolean;
+  proposalDetail: GpsProposal | null;
   onAcceptProposal: () => void;
   onRejectProposal: () => void;
 }
@@ -23,16 +26,23 @@ export function GpsChatPanel({
   messages,
   onSend,
   isLoading,
+  statusSteps,
   pendingProposal,
+  proposalDetail,
   onAcceptProposal,
   onRejectProposal,
 }: GpsChatPanelProps) {
   const [input, setInput] = useState("");
+  const [showSummary, setShowSummary] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollEndRef = useRef<HTMLDivElement>(null);
 
+  // Scroll within the chat panel only (not the page)
   useEffect(() => {
-    scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
+  }, [messages, isLoading, statusSteps]);
 
   function handleSubmit() {
     const trimmed = input.trim();
@@ -42,7 +52,7 @@ export function GpsChatPanel({
   }
 
   return (
-    <div className="flex flex-col h-full border rounded-lg bg-background overflow-hidden">
+    <div className="relative flex flex-col h-full border rounded-lg bg-background overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b shrink-0">
         <h3 className="font-semibold text-sm">Thesis GPS Agent</h3>
@@ -50,7 +60,7 @@ export function GpsChatPanel({
       </div>
 
       {/* Messages — scrollable area */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-3">
+      <div ref={scrollAreaRef} className="flex-1 min-h-0 overflow-y-auto p-3">
         <div className="space-y-3">
           {messages.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-6">
@@ -70,8 +80,8 @@ export function GpsChatPanel({
               </div>
               {msg.hasProposal && pendingProposal && i === messages.length - 1 && (
                 <div className="flex gap-2 mt-2 mr-6">
-                  <Button size="sm" onClick={onAcceptProposal}>
-                    Accept changes
+                  <Button size="sm" onClick={() => setShowSummary(true)}>
+                    Review changes
                   </Button>
                   <Button size="sm" variant="outline" onClick={onRejectProposal}>
                     Reject
@@ -81,13 +91,102 @@ export function GpsChatPanel({
             </div>
           ))}
           {isLoading && (
-            <div className="bg-muted rounded-lg px-3 py-2 text-sm mr-6 animate-pulse">
-              Thinking...
+            <div className="bg-muted rounded-lg px-3 py-2 text-sm mr-6 space-y-1.5">
+              {statusSteps.map((step, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  {i === statusSteps.length - 1 ? (
+                    <span className="inline-block h-2 w-2 rounded-full bg-blue-500 animate-pulse shrink-0" />
+                  ) : (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                  <span className={i === statusSteps.length - 1 ? "text-foreground" : "text-muted-foreground line-through text-xs"}>
+                    {step}
+                  </span>
+                </div>
+              ))}
+              {statusSteps.length === 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="inline-block h-2 w-2 rounded-full bg-blue-500 animate-pulse shrink-0" />
+                  <span>Starting...</span>
+                </div>
+              )}
             </div>
           )}
           <div ref={scrollEndRef} />
         </div>
       </div>
+
+      {/* Proposal summary popup */}
+      {showSummary && proposalDetail && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 rounded-lg">
+          <div className="bg-background border rounded-lg shadow-xl p-4 mx-3 max-h-[80%] overflow-y-auto w-full">
+            <h4 className="font-semibold text-sm mb-3">Proposed Changes</h4>
+
+            <div className="space-y-2">
+              {proposalDetail.addNodes.map((n) => (
+                <div key={n.id} className="flex items-start gap-2 rounded-md border-l-4 border-green-500 bg-green-50 px-3 py-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <div className="text-xs">
+                    <p className="font-semibold text-green-900">{n.label}</p>
+                    {n.subtasks && n.subtasks.length > 0 && (
+                      <ul className="mt-1 space-y-0.5 text-green-800/70">
+                        {n.subtasks.map((s, i) => <li key={i}>- {s}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {proposalDetail.updateNodes.map((u) => (
+                <div key={u.id} className="flex items-start gap-2 rounded-md border-l-4 border-amber-500 bg-amber-50 px-3 py-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+                    <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" />
+                  </svg>
+                  <div className="text-xs">
+                    <p className="font-semibold text-amber-900">{u.patch.label ?? u.id}</p>
+                    {u.patch.subtasks && u.patch.subtasks.length > 0 && (
+                      <ul className="mt-1 space-y-0.5 text-amber-800/70">
+                        {u.patch.subtasks.map((s, i) => <li key={i}>- {s}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {proposalDetail.removeNodeIds.map((id) => (
+                <div key={id} className="flex items-center gap-2 rounded-md border-l-4 border-red-500 bg-red-50 px-3 py-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <p className="text-xs font-semibold text-red-900">{id}</p>
+                </div>
+              ))}
+
+              {proposalDetail.addEdges.length > 0 && (
+                <div className="flex items-center gap-2 rounded-md border-l-4 border-blue-500 bg-blue-50 px-3 py-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M5 12h14" /><path d="M12 5l7 7-7 7" />
+                  </svg>
+                  <p className="text-xs font-semibold text-blue-900">{proposalDetail.addEdges.length} new connection{proposalDetail.addEdges.length > 1 ? "s" : ""}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <Button size="sm" className="flex-1" onClick={() => { setShowSummary(false); onAcceptProposal(); }}>
+                Accept
+              </Button>
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => { setShowSummary(false); onRejectProposal(); }}>
+                Reject
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Input — pinned to bottom */}
       <div className="border-t p-3 shrink-0">

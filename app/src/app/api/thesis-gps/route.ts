@@ -1,47 +1,89 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { runGpsAgent } from "@/lib/gps-agent";
 import { mockAgentProposal } from "@/lib/gps-mock";
 import { getProject, getStudent, getTopic, getSupervisor } from "@/lib/data";
 import { DEFAULT_GRAPH } from "@/lib/gps-defaults";
-import type { GpsAgentRequest, GpsAgentResponse } from "@/types/gps";
+import type { GpsAgentRequest } from "@/types/gps";
+
+function sseEvent(data: object): string {
+  return `data: ${JSON.stringify(data)}\n\n`;
+}
 
 export async function POST(req: NextRequest) {
   const body: GpsAgentRequest = await req.json();
-  const { graph, projectId, userMessage, completedSubtasks } = body;
+  const { graph, projectId, userMessage, completedSubtasks, conversationHistory } = body;
 
-  const project = await getProject(projectId);
-  if (!project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  }
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
+  const enc = new TextEncoder();
 
-  const [student, topic, supervisor] = await Promise.all([
-    getStudent(project.studentId),
-    project.topicId ? getTopic(project.topicId) : null,
-    project.supervisorIds.length > 0
-      ? getSupervisor(project.supervisorIds[0])
-      : null,
-  ]);
+  const emit = async (data: object) => {
+    await writer.write(enc.encode(sseEvent(data)));
+  };
 
-  const currentGraph =
-    graph.nodes.length > 0 ? graph : DEFAULT_GRAPH;
+  // Run async in background so we can return the stream immediately
+  (async () => {
+    try {
+      await emit({ type: "status", text: "Reading your thesis pipeline..." });
 
-  try {
-    const proposal = await runGpsAgent({
-      graph: currentGraph,
-      project,
-      student,
-      topic,
-      supervisor,
-      userMessage,
-      completedSubtasks: completedSubtasks ?? {},
-    });
+      const project = await getProject(projectId);
+      if (!project) {
+        await emit({ type: "error", text: "Project not found." });
+        return;
+      }
 
-    const response: GpsAgentResponse = { proposal };
-    return NextResponse.json(response);
-  } catch (err: unknown) {
-    console.error("GPS agent error, falling back to mock:", err instanceof Error ? err.message : err);
-    const proposal = mockAgentProposal(userMessage ?? "");
-    const response: GpsAgentResponse = { proposal };
-    return NextResponse.json(response);
-  }
+      const [student, topic, supervisor] = await Promise.all([
+        getStudent(project.studentId),
+        project.topicId ? getTopic(project.topicId) : null,
+        project.supervisorIds.length > 0 ? getSupervisor(project.supervisorIds[0]) : null,
+      ]);
+
+      await emit({ type: "status", text: "Analyzing your progress and context..." });
+
+      const currentGraph = graph.nodes.length > 0 ? graph : DEFAULT_GRAPH;
+
+      // Small delay so the user sees the step
+      await new Promise((r) => setTimeout(r, 400));
+      await emit({ type: "status", text: "Identifying areas to improve..." });
+
+      let proposal;
+      try {
+        // Notify when about to call the model
+        await new Promise((r) => setTimeout(r, 300));
+        await emit({ type: "status", text: "Drafting changes to your graph..." });
+
+        proposal = await runGpsAgent({
+          graph: currentGraph,
+          project,
+          student,
+          topic,
+          supervisor,
+          userMessage,
+          completedSubtasks: completedSubtasks ?? {},
+          conversationHistory: conversationHistory ?? [],
+        });
+      } catch (err: unknown) {
+        console.error("GPS agent error, falling back to mock:", err instanceof Error ? err.message : err);
+        await emit({ type: "status", text: "Finalizing with fallback suggestions..." });
+        proposal = mockAgentProposal(userMessage ?? "");
+      }
+
+      await emit({ type: "status", text: "Preparing your proposal..." });
+      await new Promise((r) => setTimeout(r, 200));
+      await emit({ type: "done", proposal });
+    } catch (err) {
+      await emit({ type: "error", text: "Something went wrong. Please try again." });
+      console.error(err);
+    } finally {
+      await writer.close();
+    }
+  })();
+
+  return new Response(stream.readable, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }

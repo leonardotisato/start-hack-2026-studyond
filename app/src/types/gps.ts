@@ -44,11 +44,17 @@ export interface GpsProposal {
 
 // -- API request/response --
 
+export interface GpsConversationMessage {
+  role: "user" | "agent";
+  content: string;
+}
+
 export interface GpsAgentRequest {
   graph: GpsGraph;
   projectId: string;
   userMessage?: string;
   completedSubtasks?: Record<string, number[]>;
+  conversationHistory?: GpsConversationMessage[];
 }
 
 export interface GpsAgentResponse {
