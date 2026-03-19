@@ -49,11 +49,39 @@ export interface GpsProposal {
   recommend?: RecommendationRequest;
 }
 
+// -- Attachable context sources --
+
+export type ContextSource =
+  | "supervisors"
+  | "experts"
+  | "companies"
+  | "topics"
+  | "universities"
+  | "programs";
+
+export const CONTEXT_SOURCE_META: Record<
+  ContextSource,
+  { label: string; icon: string; description: string }
+> = {
+  supervisors: { label: "Supervisors", icon: "🎓", description: "Academic professors and advisors" },
+  experts: { label: "Experts", icon: "💼", description: "Industry professionals at companies" },
+  companies: { label: "Companies", icon: "🏢", description: "Companies offering thesis partnerships" },
+  topics: { label: "Topics", icon: "📄", description: "Available thesis topics and job listings" },
+  universities: { label: "Universities", icon: "🏛️", description: "Swiss universities and institutions" },
+  programs: { label: "Programs", icon: "📚", description: "Study programs (BSc, MSc, PhD)" },
+};
+
 // -- API request/response --
 
 export interface GpsConversationMessage {
   role: "user" | "agent";
   content: string;
+}
+
+export interface ScoutConversationAttachment {
+  nodeId: string;
+  nodeLabel: string;
+  messages: { role: string; content: string }[];
 }
 
 export interface GpsAgentRequest {
@@ -62,6 +90,8 @@ export interface GpsAgentRequest {
   userMessage?: string;
   completedSubtasks?: Record<string, number[]>;
   conversationHistory?: GpsConversationMessage[];
+  attachedContext?: ContextSource[];
+  attachedScoutConversations?: ScoutConversationAttachment[];
 }
 
 export interface GpsAgentResponse {

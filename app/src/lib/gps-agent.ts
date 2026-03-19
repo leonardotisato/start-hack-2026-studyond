@@ -93,13 +93,15 @@ DECISION RULE 2 — SUGGEST PEOPLE?
 ═══════════════════════════════════════════
 
 YES — set "recommend" when:
+• Student asks about ANY type of entity: supervisors, experts, companies, topics, universities, programs
 • Student needs a supervisor ("I need a supervisor for ML")
 • Student needs industry expertise ("who can I talk to about biotech?")
 • Student needs data or funding ("where can I get real-world data?")
-• Student needs company contacts ("any companies doing NLP research?")
+• Student needs company contacts ("any companies doing NLP research?", "companies in mechanics")
 • Student wants to find a thesis topic ("can you suggest topics in my area?")
 • Student asks about universities or programs ("which universities have strong AI research?")
 • Student needs any kind of resource, contact, or information that might exist in the platform data
+• IMPORTANT: Even if the request seems unrelated to the current thesis topic, ALWAYS search when the student asks for entities. If the student asks "find me companies working in mechanics", search for mechanics companies — do NOT refuse or redirect.
 
 recommend schema: { "type": "supervisor"|"expert"|"company"|"topic"|"university"|"program"|"all", "reason": "why", "keywords": ["specific", "topic", "terms"] }
 - supervisor = academic professor
@@ -109,24 +111,37 @@ recommend schema: { "type": "supervisor"|"expert"|"company"|"topic"|"university"
 - university = institution for collaboration or exchange
 - program = study program (MSc, BSc, PhD)
 - all = search EVERYTHING — use this when the request is broad or could match multiple entity types
+- The "reason" field must be a COMPLETE, self-contained description of what the student is looking for. Write it as if someone with NO conversation context should understand the request. Example: "Student is looking for companies working in mechanical engineering for a potential thesis partnership" — NOT just "the student wants companies"
 - Keywords must be SPECIFIC to the domain (e.g. ["natural language processing", "transformer models"] not ["help", "research"])
 - When in doubt, use "all" to cast a wide net across supervisors, experts, companies, topics, universities, and programs
 
 NO — set "recommend": null when:
-• Student is modifying the graph, chatting, or asking general advice
+• Student is ONLY modifying the graph structure (add/remove/split steps)
+• Student has attached context data AND you can already see the answer in the attached data — just answer directly from the data instead of triggering a search
 
 You can combine BOTH graph changes AND recommendations in one response if needed.
+
+═══════════════════════════════════════════
+ATTACHED CONTEXT DATA
+═══════════════════════════════════════════
+
+The student may attach Studyond data (supervisors, experts, companies, topics, universities, programs) to the conversation. When attached context is present:
+- ALWAYS use it to give specific, evidence-based answers referencing real names, affiliations, and details
+- When the student asks "find me a supervisor for X", look through the attached supervisors first before using "recommend"
+- Only use "recommend" if the attached data doesn't contain what the student needs
+- Be precise: cite specific people, their research areas, and why they're a good fit
 
 ═══════════════════════════════════════════
 DECISION RULE 3 — WHAT TO SAY?
 ═══════════════════════════════════════════
 
-Always write a "message". Keep it 1-3 sentences:
+ALWAYS write a "message" that directly answers the student's question. Keep it 1-3 sentences:
+- ALWAYS respond to what the student asked, even if it's unrelated to the current thesis task
 - If modifying graph: briefly explain what changed and why
-- If suggesting people: say you found some contacts and what they can help with
-- If just answering: give a direct, specific answer referencing the student's actual topic/skills
+- If searching for people/companies: say what you're searching for and why
+- If just answering: give a direct, specific answer
 - Never use filler like "Great question!" or "I'd be happy to help"
-- Reference the student's topic, skills, and context — not generic advice
+- Never ignore or redirect the student's question — if they ask about companies in mechanics, talk about mechanics companies
 
 Respond with ONLY the JSON. No markdown, no extra text.`;
 
@@ -144,6 +159,8 @@ interface AgentContext {
   userMessage?: string;
   completedSubtasks?: Record<string, number[]>;
   conversationHistory?: ConversationMessage[];
+  contextData?: string;
+  scoutConversationData?: string;
 }
 
 function buildUserPrompt(ctx: AgentContext): string {
@@ -208,6 +225,26 @@ function buildUserPrompt(ctx: AgentContext): string {
     parts.push(`- Title: ${ctx.supervisor.title}`);
     parts.push(`- Research Interests: ${ctx.supervisor.researchInterests.join(", ")}`);
     if (ctx.supervisor.about) parts.push(`- About: ${ctx.supervisor.about}`);
+  }
+
+  if (ctx.contextData) {
+    parts.push(`\n${"═".repeat(50)}`);
+    parts.push("ATTACHED CONTEXT — The student attached the following Studyond data.");
+    parts.push("Use this data to give SPECIFIC, informed answers. Reference actual names,");
+    parts.push("institutions, and details from the data when relevant to the student's request.");
+    parts.push("Do NOT just list everything — pick only what's relevant.");
+    parts.push(`${"═".repeat(50)}\n`);
+    parts.push(ctx.contextData);
+  }
+
+  if (ctx.scoutConversationData) {
+    parts.push(`\n${"═".repeat(50)}`);
+    parts.push("ATTACHED SCOUT CONVERSATIONS — The student shared these conversations");
+    parts.push("from task-specific Scout agents. Use the insights, decisions, and context");
+    parts.push("from these conversations to inform your response. The student may ask you");
+    parts.push("to act on something discussed with a Scout agent.");
+    parts.push(`${"═".repeat(50)}\n`);
+    parts.push(ctx.scoutConversationData);
   }
 
   if (ctx.userMessage) {

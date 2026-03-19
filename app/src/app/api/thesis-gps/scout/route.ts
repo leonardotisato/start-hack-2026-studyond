@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { runScoutAgent } from "@/lib/gps-scout-agent";
-import { findRecommendations } from "@/lib/gps-recommend";
+import { ragSearch } from "@/lib/rag";
 import { getProject, getStudent, getTopic, getSupervisor } from "@/lib/data";
 import type { ScoutAgentRequest } from "@/types/gps";
 
@@ -77,11 +77,17 @@ export async function POST(req: NextRequest) {
       }
 
       if (proposal.recommend) {
-        await emit({ type: "status", text: "Searching the database..." });
+        await emit({ type: "status", text: "Searching the Studyond database..." });
         try {
-          const recommendations = await findRecommendations(proposal.recommend, projectId);
+          const recommendations = await ragSearch(proposal.recommend, projectId);
           if (recommendations.length > 0) {
             await emit({ type: "recommendations", recommendations });
+          } else {
+            await emit({
+              type: "noResults",
+              searchType: proposal.recommend.type,
+              reason: proposal.recommend.reason,
+            });
           }
         } catch (err) {
           console.error("Scout recommendation error:", err);

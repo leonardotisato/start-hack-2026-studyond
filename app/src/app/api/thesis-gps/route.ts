@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { runGpsAgent } from "@/lib/gps-agent";
 import { mockAgentProposal } from "@/lib/gps-mock";
-import { findRecommendations } from "@/lib/gps-recommend";
+import { ragSearch } from "@/lib/rag";
+import { loadContextData } from "@/lib/context-loader";
 import { getProject, getStudent, getTopic, getSupervisor } from "@/lib/data";
 import { DEFAULT_GRAPH } from "@/lib/gps-defaults";
 import type { GpsAgentRequest } from "@/types/gps";
@@ -12,7 +13,7 @@ function sseEvent(data: object): string {
 
 export async function POST(req: NextRequest) {
   const body: GpsAgentRequest = await req.json();
-  const { graph, projectId, userMessage, completedSubtasks, conversationHistory } = body;
+  const { graph, projectId, userMessage, completedSubtasks, conversationHistory, attachedContext, attachedScoutConversations } = body;
 
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
@@ -43,13 +44,30 @@ export async function POST(req: NextRequest) {
 
       const currentGraph = graph.nodes.length > 0 ? graph : DEFAULT_GRAPH;
 
-      // Small delay so the user sees the step
+      let contextData = "";
+      if (attachedContext && attachedContext.length > 0) {
+        await emit({ type: "status", text: `Loading ${attachedContext.length} data source${attachedContext.length > 1 ? "s" : ""}...` });
+        contextData = await loadContextData(attachedContext);
+      }
+
+      let scoutConversationData = "";
+      if (attachedScoutConversations && attachedScoutConversations.length > 0) {
+        await emit({ type: "status", text: `Loading ${attachedScoutConversations.length} Scout conversation${attachedScoutConversations.length > 1 ? "s" : ""}...` });
+        scoutConversationData = attachedScoutConversations
+          .map((conv) => {
+            const lines = conv.messages.map(
+              (m) => `  ${m.role === "user" ? "Student" : "Scout"}: ${m.content}`,
+            );
+            return `## Scout Conversation: "${conv.nodeLabel}" (node: ${conv.nodeId})\n\n${lines.join("\n")}`;
+          })
+          .join("\n\n───────────────────────────────────────\n\n");
+      }
+
       await new Promise((r) => setTimeout(r, 400));
       await emit({ type: "status", text: "Identifying areas to improve..." });
 
       let proposal;
       try {
-        // Notify when about to call the model
         await new Promise((r) => setTimeout(r, 300));
         await emit({ type: "status", text: "Drafting changes to your graph..." });
 
@@ -62,6 +80,8 @@ export async function POST(req: NextRequest) {
           userMessage,
           completedSubtasks: completedSubtasks ?? {},
           conversationHistory: conversationHistory ?? [],
+          contextData,
+          scoutConversationData,
         });
       } catch (err: unknown) {
         console.error("GPS agent error, falling back to mock:", err instanceof Error ? err.message : err);
@@ -69,13 +89,21 @@ export async function POST(req: NextRequest) {
         proposal = mockAgentProposal(userMessage ?? "");
       }
 
-      // Run sub-agent if the agent requested recommendations
       if (proposal.recommend) {
         await emit({ type: "status", text: "Studyond Scout: searching the database..." });
         try {
-          const recommendations = await findRecommendations(proposal.recommend, projectId);
+          const recommendations = await ragSearch(
+            proposal.recommend,
+            projectId,
+          );
           if (recommendations.length > 0) {
             await emit({ type: "recommendations", recommendations });
+          } else {
+            await emit({
+              type: "noResults",
+              searchType: proposal.recommend.type,
+              reason: proposal.recommend.reason,
+            });
           }
         } catch (err) {
           console.error("Recommendation sub-agent error:", err);

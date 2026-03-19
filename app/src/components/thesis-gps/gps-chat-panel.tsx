@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import type { GpsProposal, Recommendation, ContextSource, ScoutMessage } from "@/types/gps";
+import { CONTEXT_SOURCE_META } from "@/types/gps";
 import { Mic, ArrowUp, Square } from "lucide-react";
 import type { GpsProposal, Recommendation } from "@/types/gps";
 import { RecommendationCard } from "./recommendation-card";
@@ -14,16 +16,32 @@ interface ChatMessage {
   recommendations?: Recommendation[];
 }
 
+interface ScoutConversationOption {
+  nodeId: string;
+  nodeLabel: string;
+  messageCount: number;
+}
+
 interface GpsChatPanelProps {
   messages: ChatMessage[];
-  onSend: (message: string) => void;
+  onSend: (message: string, attachedContext: ContextSource[], attachedScoutNodeIds: string[]) => void;
   isLoading: boolean;
   statusSteps: string[];
   pendingProposal: boolean;
   proposalDetail: GpsProposal | null;
   onAcceptProposal: () => void;
   onRejectProposal: () => void;
+  scoutConversations?: ScoutConversationOption[];
 }
+
+const ALL_SOURCES: ContextSource[] = [
+  "supervisors",
+  "experts",
+  "companies",
+  "topics",
+  "universities",
+  "programs",
+];
 
 export function GpsChatPanel({
   messages,
@@ -34,15 +52,32 @@ export function GpsChatPanel({
   proposalDetail,
   onAcceptProposal,
   onRejectProposal,
+  scoutConversations = [],
 }: GpsChatPanelProps) {
   const [input, setInput] = useState("");
   const [showSummary, setShowSummary] = useState(false);
+  const [attachedContext, setAttachedContext] = useState<ContextSource[]>([]);
+  const [attachedScoutNodeIds, setAttachedScoutNodeIds] = useState<string[]>([]);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const scrollEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setShowContextMenu(false);
+      }
+    }
+    if (showContextMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showContextMenu]);
 
   // Scroll within the chat panel only (not the page)
   useEffect(() => {
@@ -54,10 +89,23 @@ export function GpsChatPanel({
   function handleSubmit() {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
-    onSend(trimmed);
+    onSend(trimmed, attachedContext, attachedScoutNodeIds);
     setInput("");
   }
 
+  function toggleContext(source: ContextSource) {
+    setAttachedContext((prev) =>
+      prev.includes(source) ? prev.filter((s) => s !== source) : [...prev, source]
+    );
+  }
+
+  function toggleScoutConversation(nodeId: string) {
+    setAttachedScoutNodeIds((prev) =>
+      prev.includes(nodeId) ? prev.filter((id) => id !== nodeId) : [...prev, nodeId]
+    );
+  }
+
+  const totalAttached = attachedContext.length + attachedScoutNodeIds.length;
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -110,7 +158,7 @@ export function GpsChatPanel({
   }, []);
 
   return (
-    <div className="relative flex flex-col h-full border rounded-lg bg-background overflow-hidden">
+    <div className="relative flex flex-col h-full border rounded-lg bg-background">
       {/* Header */}
       <div className="px-4 py-3 border-b shrink-0">
         <h3 className="font-semibold text-sm">Thesis GPS Agent</h3>
@@ -120,7 +168,7 @@ export function GpsChatPanel({
       </div>
 
       {/* Messages — scrollable area */}
-      <div ref={scrollAreaRef} className="flex-1 min-h-0 overflow-y-auto p-3">
+      <div ref={scrollAreaRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3">
         <div className="space-y-3">
           {messages.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-6">
@@ -386,6 +434,54 @@ export function GpsChatPanel({
         </div>
       )}
 
+      {/* Context + Input — pinned to bottom */}
+      <div className="border-t shrink-0">
+        {/* Attached context chips */}
+        {totalAttached > 0 && (
+          <div className="px-3 pt-2 flex flex-wrap gap-1">
+            {attachedContext.map((source) => {
+              const meta = CONTEXT_SOURCE_META[source];
+              return (
+                <span
+                  key={source}
+                  className="inline-flex items-center gap-1 rounded-full bg-violet-100 border border-violet-200 text-violet-800 pl-1.5 pr-0.5 py-0.5 text-[11px] font-medium"
+                >
+                  <span>{meta.icon}</span>
+                  <span>{meta.label}</span>
+                  <button
+                    onClick={() => toggleContext(source)}
+                    className="ml-0.5 rounded-full hover:bg-violet-200 p-0.5 transition"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </span>
+              );
+            })}
+            {attachedScoutNodeIds.map((nodeId) => {
+              const conv = scoutConversations.find((c) => c.nodeId === nodeId);
+              if (!conv) return null;
+              return (
+                <span
+                  key={nodeId}
+                  className="inline-flex items-center gap-1 rounded-full bg-blue-100 border border-blue-200 text-blue-800 pl-1.5 pr-0.5 py-0.5 text-[11px] font-medium"
+                >
+                  <span>💬</span>
+                  <span>{conv.nodeLabel}</span>
+                  <button
+                    onClick={() => toggleScoutConversation(nodeId)}
+                    className="ml-0.5 rounded-full hover:bg-blue-200 p-0.5 transition"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
       {/* Input — pinned to bottom */}
       <div className="border-t p-3 shrink-0">
         <div className="flex items-end gap-2">
@@ -440,74 +536,110 @@ export function GpsChatPanel({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Recommendation card                                                */
-/* ------------------------------------------------------------------ */
+        <div className="p-3">
+          {/* Context add button + dropdown */}
+          <div className="relative mb-2" ref={contextMenuRef}>
+            <button
+              onClick={() => setShowContextMenu((v) => !v)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+              {totalAttached > 0
+                ? `${totalAttached} context source${totalAttached > 1 ? "s" : ""} attached`
+                : "Attach context"}
+            </button>
 
-const TYPE_ICONS: Record<string, { icon: string; color: string }> = {
-  supervisor: { icon: "🎓", color: "border-fuchsia-300 bg-fuchsia-50" },
-  expert: { icon: "💼", color: "border-violet-300 bg-violet-50" },
-  company: { icon: "🏢", color: "border-rose-300 bg-rose-50" },
-  topic: { icon: "📄", color: "border-cyan-300 bg-cyan-50" },
-  university: { icon: "🏛️", color: "border-amber-300 bg-amber-50" },
-  program: { icon: "📚", color: "border-teal-300 bg-teal-50" },
-};
+            {showContextMenu && (
+              <div className="absolute bottom-full left-0 mb-1 w-64 bg-background border rounded-lg shadow-xl z-[100] py-1 max-h-[320px] overflow-y-auto">
+                <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Studyond Data
+                </p>
+                {ALL_SOURCES.map((source) => {
+                  const meta = CONTEXT_SOURCE_META[source];
+                  const isActive = attachedContext.includes(source);
+                  return (
+                    <button
+                      key={source}
+                      onClick={() => toggleContext(source)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs transition hover:bg-muted ${
+                        isActive ? "bg-violet-50" : ""
+                      }`}
+                    >
+                      <span className="text-sm shrink-0">{meta.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{meta.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{meta.description}</p>
+                      </div>
+                      {isActive && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
 
-function RecommendationCard({ rec }: { rec: Recommendation }) {
-  const style = TYPE_ICONS[rec.type] ?? {
-    icon: "👤",
-    color: "border-gray-300 bg-gray-50",
-  };
-  const matchPercent = Math.round(rec.matchScore * 100);
-
-  return (
-    <div className={`rounded-lg border ${style.color} p-3 text-xs`}>
-      <div className="flex items-start gap-2">
-        <span className="text-base shrink-0">{style.icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-semibold text-foreground truncate">{rec.name}</p>
-            <span className="text-[10px] font-medium text-muted-foreground shrink-0">
-              {matchPercent}% match
-            </span>
+                {scoutConversations.length > 0 && (
+                  <>
+                    <div className="border-t my-1" />
+                    <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Scout Conversations
+                    </p>
+                    {scoutConversations.map((conv) => {
+                      const isActive = attachedScoutNodeIds.includes(conv.nodeId);
+                      return (
+                        <button
+                          key={conv.nodeId}
+                          onClick={() => toggleScoutConversation(conv.nodeId)}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-xs transition hover:bg-muted ${
+                            isActive ? "bg-blue-50" : ""
+                          }`}
+                        >
+                          <span className="text-sm shrink-0">💬</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">{conv.nodeLabel}</p>
+                            <p className="text-[10px] text-muted-foreground">{conv.messageCount} messages</p>
+                          </div>
+                          {isActive && (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            )}
           </div>
-          <p className="text-muted-foreground truncate">{rec.title}</p>
-          <p className="text-muted-foreground">{rec.affiliation}</p>
-          {rec.fieldNames.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {rec.fieldNames.map((f) => (
-                <span
-                  key={f}
-                  className="rounded-full bg-violet-100 border border-violet-200 text-violet-800 px-1.5 py-0.5 text-[10px]"
-                >
-                  {f}
-                </span>
-              ))}
-            </div>
-          )}
+
+          <div className="flex gap-2">
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask the agent..."
+              className="min-h-[40px] max-h-[100px] resize-none text-sm"
+              rows={1}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+            />
+            <Button
+              onClick={handleSubmit}
+              disabled={isLoading || !input.trim()}
+              className="shrink-0"
+            >
+              Send
+            </Button>
+          </div>
         </div>
       </div>
-      {rec.email && (
-        <a
-          href={`mailto:${rec.email}`}
-          className="mt-2 flex items-center justify-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition"
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect width="20" height="16" x="2" y="4" rx="2" />
-            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-          </svg>
-          Contact
-        </a>
-      )}
     </div>
   );
 }
