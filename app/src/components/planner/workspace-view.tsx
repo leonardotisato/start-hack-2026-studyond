@@ -100,23 +100,50 @@ interface WorkspaceViewProps {
   projectId: string;
 }
 
+// --- Session storage helpers (persist across navigation, reset on app restart) ---
+const STORAGE_KEYS = {
+  graph: "gps-graph",
+  subtasks: "gps-subtasks",
+  events: "gps-events",
+  messages: "gps-messages",
+} as const;
+
+function loadSession<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveSession(key: string, value: unknown) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify(value));
+  } catch { /* quota exceeded — ignore */ }
+}
+
 export function WorkspaceView({ projectId }: WorkspaceViewProps) {
-  const [graph, setGraph] = useState<GpsGraph>(DEFAULT_GRAPH);
-  const [completedSubtasks, setCompletedSubtasks] = useState<Record<string, number[]>>(
-    DEFAULT_COMPLETED_SUBTASKS
+  const [graph, setGraph] = useState<GpsGraph>(() =>
+    loadSession(STORAGE_KEYS.graph, DEFAULT_GRAPH)
   );
-  const [manualEvents, setManualEvents] = useState<WorkspaceEvent[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [completedSubtasks, setCompletedSubtasks] = useState<Record<string, number[]>>(() =>
+    loadSession(STORAGE_KEYS.subtasks, DEFAULT_COMPLETED_SUBTASKS)
+  );
+  const [manualEvents, setManualEvents] = useState<WorkspaceEvent[]>(() =>
+    loadSession(STORAGE_KEYS.events, [])
+  );
+  const [messages, setMessages] = useState<ChatMessage[]>(() =>
+    loadSession(STORAGE_KEYS.messages, [])
+  );
   const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
 
-  // --- Always reset to defaults on mount (fresh start every time) ---
-  useEffect(() => {
-    setGraph(DEFAULT_GRAPH);
-    setCompletedSubtasks(DEFAULT_COMPLETED_SUBTASKS);
-    setManualEvents([]);
-    setMessages([]);
-    setRecentlyAdded(new Set());
-  }, []);
+  // --- Persist to sessionStorage on changes ---
+  useEffect(() => { saveSession(STORAGE_KEYS.graph, graph); }, [graph]);
+  useEffect(() => { saveSession(STORAGE_KEYS.subtasks, completedSubtasks); }, [completedSubtasks]);
+  useEffect(() => { saveSession(STORAGE_KEYS.events, manualEvents); }, [manualEvents]);
+  useEffect(() => { saveSession(STORAGE_KEYS.messages, messages); }, [messages]);
 
   // --- Toggle subtask ---
   const handleToggleSubtask = useCallback((nodeId: string, index: number) => {
@@ -173,34 +200,30 @@ export function WorkspaceView({ projectId }: WorkspaceViewProps) {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="gps">
+      {/* GPS Graph */}
+      <ThesisGpsView
+        projectId={projectId}
+        graph={graph}
+        onGraphChange={handleGraphChange}
+        completedSubtasks={completedSubtasks}
+        onToggleSubtask={handleToggleSubtask}
+        onChooseBranch={handleChooseBranch}
+        messages={messages}
+        onMessagesChange={setMessages}
+        recentlyAdded={recentlyAdded}
+      />
+
+      {/* Task Board */}
+      <TaskBoard
+        tasks={graphTasks}
+        onToggleSubtask={handleToggleSubtask}
+      />
+
+      {/* Calendar */}
+      <Tabs defaultValue="calendar">
         <TabsList>
-          <TabsTrigger value="gps">GPS Graph</TabsTrigger>
-          <TabsTrigger value="tasks">Task Board</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="gps" className="mt-4">
-          <ThesisGpsView
-            projectId={projectId}
-            graph={graph}
-            onGraphChange={handleGraphChange}
-            completedSubtasks={completedSubtasks}
-            onToggleSubtask={handleToggleSubtask}
-            onChooseBranch={handleChooseBranch}
-            messages={messages}
-            onMessagesChange={setMessages}
-            recentlyAdded={recentlyAdded}
-          />
-        </TabsContent>
-
-        <TabsContent value="tasks" className="mt-4">
-          <TaskBoard
-            tasks={graphTasks}
-            onToggleSubtask={handleToggleSubtask}
-          />
-        </TabsContent>
-
         <TabsContent value="calendar" className="mt-4">
           <CalendarView
             events={allEvents}

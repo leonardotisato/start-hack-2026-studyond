@@ -59,15 +59,13 @@ export function mockAgentProposal(userMessage: string): GpsProposal {
     };
   }
 
-  // Default: suggest checking in with supervisor
+  // Default: just answer without graph changes
   return {
     addNodes: [],
-    updateNodes: [
-      { id: "literature-review", patch: { subtasks: ["Search databases (Scholar, Scopus)", "Read 20-30 key papers", "Write literature summary", "Identify gaps", "Schedule mid-point check with supervisor"] } },
-    ],
+    updateNodes: [],
     removeNodeIds: [],
     addEdges: [],
     removeEdgeIds: [],
-    message: "I've added a subtask to your current Literature Review step: schedule a mid-point check with your supervisor. Regular check-ins help keep you on track and ensure your literature review aligns with the thesis direction. Is there anything specific about your current step you'd like help with?",
+    message: "Based on your progress, I'd suggest focusing on completing the current active step. Let me know if you need specific advice or want to restructure your pipeline.",
   };
 }

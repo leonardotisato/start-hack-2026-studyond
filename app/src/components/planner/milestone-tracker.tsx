@@ -79,6 +79,7 @@ function buildItems(
 
 export function MilestoneTracker({ nodes, completedSubtasks, recentlyAdded, manualEvents = [] }: MilestoneTrackerProps) {
   const [mode, setMode] = useState<ViewMode>("milestones");
+  const [expanded, setExpanded] = useState(true);
 
   const items = buildItems(nodes, completedSubtasks, manualEvents, mode === "milestones" ? "milestone" : "deadline", recentlyAdded);
 
@@ -93,14 +94,37 @@ export function MilestoneTracker({ nodes, completedSubtasks, recentlyAdded, manu
   }
 
   return (
-    <div className="rounded-lg border p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">
-          {mode === "milestones" ? "Milestones" : "Deadlines"}
-        </h3>
+    <div className="rounded-lg border overflow-hidden">
+      {/* Header row — always visible */}
+      <div
+        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex items-center gap-2">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`text-muted-foreground transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+          <h3 className="text-sm font-semibold">
+            {mode === "milestones" ? "Milestones" : "Deadlines"}
+          </h3>
+          <span className="text-xs text-muted-foreground">({items.length})</span>
+        </div>
+
+        {/* Switcher — stop propagation so clicking it doesn't toggle collapse */}
         <select
           value={mode}
           onChange={(e) => setMode(e.target.value as ViewMode)}
+          onClick={(e) => e.stopPropagation()}
           className="text-xs rounded-md border bg-background px-2 py-1 outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
           <option value="milestones">Milestones</option>
@@ -108,10 +132,15 @@ export function MilestoneTracker({ nodes, completedSubtasks, recentlyAdded, manu
         </select>
       </div>
 
-      {mode === "milestones" ? (
-        <MilestoneList items={items} />
-      ) : (
-        <DeadlineList items={items} />
+      {/* Collapsible content */}
+      {expanded && (
+        <div className="px-4 pb-4 pt-1 border-t">
+          {mode === "milestones" ? (
+            <MilestoneList items={items} />
+          ) : (
+            <DeadlineList items={items} />
+          )}
+        </div>
       )}
     </div>
   );

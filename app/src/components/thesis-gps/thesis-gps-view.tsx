@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
   Controls,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  ReactFlowProvider,
   type Node,
   type Edge,
   type NodeMouseHandler,
@@ -177,7 +179,7 @@ function applyProposalToGraph(graph: GpsGraph, proposal: GpsProposal): GpsGraph 
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
-export function ThesisGpsView({
+function ThesisGpsViewInner({
   projectId,
   graph,
   onGraphChange,
@@ -188,12 +190,16 @@ export function ThesisGpsView({
   onMessagesChange,
   recentlyAdded,
 }: ThesisGpsViewProps) {
+  const graphContainerRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [statusSteps, setStatusSteps] = useState<string[]>([]);
   const [pendingProposal, setPendingProposal] = useState<GpsProposal | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [hasFitView, setHasFitView] = useState(false);
+  const { fitView } = useReactFlow();
 
   // Compute states and layout
   const computedNodes = useMemo(
@@ -213,6 +219,55 @@ export function ThesisGpsView({
       setEdges(toFlowEdges(graph.edges, computedNodes));
     }
   }, [computedNodes, positions, completedSubtasks, graph, recentlyAdded, setNodes, setEdges, pendingProposal]);
+
+  // Keep page scrolled to the graph when agent is working or proposal appears
+  useEffect(() => {
+    if ((isLoading || pendingProposal) && graphContainerRef.current) {
+      graphContainerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [isLoading, pendingProposal]);
+
+  // Focus on proposal nodes when a proposal is previewed
+  useEffect(() => {
+    if (!pendingProposal || nodes.length === 0) return;
+    const changedIds = new Set([
+      ...pendingProposal.addNodes.map((n) => n.id),
+      ...pendingProposal.updateNodes.map((u) => u.id),
+    ]);
+    const focusNodes = nodes.filter((n) => changedIds.has(n.id));
+    if (focusNodes.length === 0) return;
+    setTimeout(() => {
+      fitView({ nodes: focusNodes, padding: 0.4, maxZoom: 1.2, duration: 500 });
+    }, 50);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingProposal]);
+
+  // Focus on recently changed nodes after accepting
+  useEffect(() => {
+    if (recentlyAdded.size === 0 || nodes.length === 0) return;
+    const focusNodes = nodes.filter((n) => recentlyAdded.has(n.id));
+    if (focusNodes.length === 0) return;
+    setTimeout(() => {
+      fitView({ nodes: focusNodes, padding: 0.4, maxZoom: 1.2, duration: 500 });
+    }, 50);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentlyAdded]);
+
+  // On first load, zoom in on the active node (the one currently due to complete)
+  useEffect(() => {
+    if (hasFitView || nodes.length === 0) return;
+    const activeIds = computedNodes
+      .filter((n) => n.state === "active")
+      .map((n) => n.id);
+    const focusNodes = activeIds.length > 0
+      ? nodes.filter((n) => activeIds.includes(n.id))
+      : nodes;
+    setTimeout(() => {
+      fitView({ nodes: focusNodes, padding: 0.25, maxZoom: 1.2, duration: 400 });
+      setHasFitView(true);
+    }, 50);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes.length > 0]);
 
   // Selected node with computed state
   const selectedNode = useMemo(() => {
@@ -244,42 +299,69 @@ export function ThesisGpsView({
     setTimeout(() => setToast(null), 4000);
   }
 
-  // --- Chat with agent ---
+  // --- Chat with agent (streaming) ---
   async function handleSendMessage(userMessage: string) {
     onMessagesChange((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
+    setStatusSteps([]);
 
     try {
       const res = await fetch("/api/thesis-gps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ graph, projectId, userMessage, completedSubtasks }),
+        body: JSON.stringify({ graph, projectId, userMessage, completedSubtasks, conversationHistory: messages }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        onMessagesChange((prev) => [
-          ...prev,
-          { role: "agent", content: `Error: ${data.error ?? "Something went wrong."}` },
-        ]);
-        return;
-      }
-      const proposal: GpsProposal = data.proposal;
-      const hasChanges =
-        proposal.addNodes.length > 0 ||
-        proposal.updateNodes.length > 0 ||
-        proposal.removeNodeIds.length > 0 ||
-        proposal.addEdges.length > 0 ||
-        proposal.removeEdgeIds.length > 0;
 
-      onMessagesChange((prev) => [
-        ...prev,
-        { role: "agent", content: proposal.message, hasProposal: hasChanges },
-      ]);
+      if (!res.body) throw new Error("No response body");
 
-      if (hasChanges) {
-        setPendingProposal(proposal);
-        setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded, proposal));
-        setEdges(toFlowEdges(graph.edges, computedNodes, proposal));
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const json = line.slice(6).trim();
+          if (!json) continue;
+
+          let event: { type: string; text?: string; proposal?: GpsProposal };
+          try { event = JSON.parse(json); } catch { continue; }
+
+          if (event.type === "status" && event.text) {
+            setStatusSteps((prev) => [...prev, event.text!]);
+          } else if (event.type === "error") {
+            onMessagesChange((prev) => [
+              ...prev,
+              { role: "agent", content: `Error: ${event.text ?? "Something went wrong."}` },
+            ]);
+          } else if (event.type === "done" && event.proposal) {
+            const proposal = event.proposal;
+            const hasChanges =
+              proposal.addNodes.length > 0 ||
+              proposal.updateNodes.length > 0 ||
+              proposal.removeNodeIds.length > 0 ||
+              proposal.addEdges.length > 0 ||
+              proposal.removeEdgeIds.length > 0;
+
+            onMessagesChange((prev) => [
+              ...prev,
+              { role: "agent", content: proposal.message, hasProposal: hasChanges },
+            ]);
+
+            if (hasChanges) {
+              setPendingProposal(proposal);
+              setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded, proposal));
+              setEdges(toFlowEdges(graph.edges, computedNodes, proposal));
+            }
+          }
+        }
       }
     } catch {
       onMessagesChange((prev) => [
@@ -288,6 +370,7 @@ export function ThesisGpsView({
       ]);
     } finally {
       setIsLoading(false);
+      setStatusSteps([]);
     }
   }
 
@@ -315,8 +398,11 @@ export function ThesisGpsView({
       parts.push(`Removed: ${names}`);
     }
 
-    const addedIds = pendingProposal.addNodes.map((n) => n.id);
-    onGraphChange(newGraph, addedIds);
+    const changedIds = [
+      ...pendingProposal.addNodes.map((n) => n.id),
+      ...pendingProposal.updateNodes.map((u) => u.id),
+    ];
+    onGraphChange(newGraph, changedIds);
     setPendingProposal(null);
 
     if (parts.length > 0) {
@@ -340,7 +426,7 @@ export function ThesisGpsView({
   }
 
   return (
-    <div className="flex gap-4 h-[520px]">
+    <div ref={graphContainerRef} className="flex gap-4 h-[520px]">
       {/* Graph */}
       <div className="flex-1 relative rounded-lg border bg-background overflow-hidden">
         <ReactFlow
@@ -350,8 +436,8 @@ export function ThesisGpsView({
           onEdgesChange={onEdgesChange}
           onNodeClick={onNodeClick}
           nodeTypes={gpsNodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.3 }}
+          minZoom={0.3}
+          maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
         >
           <Background />
@@ -386,11 +472,21 @@ export function ThesisGpsView({
           messages={messages}
           onSend={handleSendMessage}
           isLoading={isLoading}
+          statusSteps={statusSteps}
           pendingProposal={pendingProposal !== null}
+          proposalDetail={pendingProposal}
           onAcceptProposal={handleAcceptProposal}
           onRejectProposal={handleRejectProposal}
         />
       </div>
     </div>
+  );
+}
+
+export function ThesisGpsView(props: ThesisGpsViewProps) {
+  return (
+    <ReactFlowProvider>
+      <ThesisGpsViewInner {...props} />
+    </ReactFlowProvider>
   );
 }
