@@ -18,13 +18,7 @@ import type {
 import { ProjectWidget } from "./project-widget";
 import { SkillsSection } from "./skills-section";
 import { RelevanceSorter } from "./relevance-sorter";
-import {
-  Mail,
-  MapPin,
-  GraduationCap,
-  Eye,
-  MessageCircle,
-} from "lucide-react";
+import { Mail, MapPin, GraduationCap, Eye, MessageCircle } from "lucide-react";
 
 interface ProfileViewProps {
   student: Student;
@@ -85,9 +79,9 @@ export function ProfileView({
       {/* ── Profile Header ── */}
       <Card className="overflow-hidden">
         {/* Gradient accent */}
-        <div className="h-24 bg-gradient-to-r from-primary/80 via-primary/60 to-primary/30" />
+        <div className="h-16 bg-gradient-to-r from-primary/80 via-primary/60 to-primary/30" />
 
-        <CardHeader className="relative pb-2 -mt-12 px-6">
+        <CardHeader className="relative pb-2 -mt-8 px-6">
           <div className="flex flex-col sm:flex-row items-start gap-4">
             <Avatar className="h-20 w-20 border-4 border-background shadow-lg text-xl font-bold">
               <AvatarFallback className="bg-primary text-primary-foreground text-xl">
@@ -135,7 +129,7 @@ export function ProfileView({
 
         <CardContent className="px-6 pb-6">
           {student.about && (
-            <p className="text-sm text-foreground/80 leading-relaxed mt-2 max-w-2xl">
+            <p className="line-clamp-3 text-sm text-foreground/80 leading-relaxed mt-2 max-w-2xl">
               {student.about}
             </p>
           )}
@@ -156,9 +150,7 @@ export function ProfileView({
       {/* ── Projects Section ── */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">
-            Projects &amp; Experiences
-          </h2>
+          <h2 className="text-xl font-semibold">Projects &amp; Experiences</h2>
           <Badge variant="outline" className="text-xs">
             {projects.length} project{projects.length !== 1 ? "s" : ""}
           </Badge>
@@ -166,10 +158,7 @@ export function ProfileView({
 
         {/* AI Sorter */}
         {projects.length > 1 && (
-          <RelevanceSorter
-            projects={initialProjects}
-            onSort={setProjects}
-          />
+          <RelevanceSorter projects={initialProjects} onSort={setProjects} />
         )}
 
         {/* Project Cards */}
@@ -180,7 +169,7 @@ export function ProfileView({
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-2">
             {projects.map((project) => (
               <ProjectWidget
                 key={project.id}
