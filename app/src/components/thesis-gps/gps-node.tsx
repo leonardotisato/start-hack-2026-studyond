@@ -151,10 +151,10 @@ export interface ScoutNodeData {
 }
 
 const SCOUT_TYPE_CONFIG: Record<string, { icon: string; bg: string; border: string }> = {
-  supervisor: { icon: "🎓", bg: "bg-blue-50", border: "border-blue-400" },
-  expert: { icon: "💼", bg: "bg-indigo-50", border: "border-indigo-400" },
-  company: { icon: "🏢", bg: "bg-green-50", border: "border-green-400" },
-  topic: { icon: "📄", bg: "bg-violet-50", border: "border-violet-400" },
+  supervisor: { icon: "🎓", bg: "bg-fuchsia-50", border: "border-fuchsia-400" },
+  expert: { icon: "💼", bg: "bg-violet-50", border: "border-violet-400" },
+  company: { icon: "🏢", bg: "bg-rose-50", border: "border-rose-400" },
+  topic: { icon: "📄", bg: "bg-cyan-50", border: "border-cyan-400" },
   university: { icon: "🏛️", bg: "bg-amber-50", border: "border-amber-400" },
   program: { icon: "📚", bg: "bg-teal-50", border: "border-teal-400" },
 };
