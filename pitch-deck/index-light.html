@@ -789,7 +789,9 @@
 
 <script>
   const TOTAL = 15;
-  const APPENDIX_START = 6;
+  const APPENDIX_START = 7; // nav position where appendix begins (after Q&A at pos 6)
+  // Q&A slide (id=slide-14) appears at nav position 6, before the appendix
+  const SLIDE_ORDER = [0,1,2,3,4,5,14,6,7,8,9,10,11,12,13];
   let current = 0;
 
   const dotsEl = document.getElementById('dots');
@@ -808,10 +810,10 @@
   function allDots() { return dotsEl.querySelectorAll('.dot'); }
 
   function goTo(n) {
-    document.getElementById('slide-' + current).classList.remove('active');
+    document.getElementById('slide-' + SLIDE_ORDER[current]).classList.remove('active');
     allDots()[current].classList.remove('active');
     current = n;
-    document.getElementById('slide-' + current).classList.add('active');
+    document.getElementById('slide-' + SLIDE_ORDER[current]).classList.add('active');
     allDots()[current].classList.add('active');
     document.getElementById('prev').disabled = current === 0;
     document.getElementById('next').disabled = current === TOTAL - 1;
