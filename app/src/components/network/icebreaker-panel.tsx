@@ -27,6 +27,12 @@ interface Section {
   content: string;
 }
 
+const SECTIONS: { title: string; skeletonWidths: string[] }[] = [
+  { title: "Icebreakers", skeletonWidths: ["w-full", "w-5/6"] },
+  { title: "Questions to Ask", skeletonWidths: ["w-full", "w-4/5", "w-11/12"] },
+  { title: "Common Ground", skeletonWidths: ["w-3/4"] },
+];
+
 function parseSections(markdown: string): Section[] {
   const parts = markdown.split(/^## /m).filter(Boolean);
   return parts.map((part) => {
@@ -36,6 +42,18 @@ function parseSections(markdown: string): Section[] {
       content: newlineIdx >= 0 ? part.slice(newlineIdx + 1).trim() : "",
     };
   });
+}
+
+function SectionSkeleton({ widths }: { widths: string[] }) {
+  return (
+    <div className="space-y-3">
+      {widths.map((w, i) => (
+        <div key={i} className="flex items-start gap-2 p-2">
+          <div className={`h-3.5 ${w} rounded bg-muted animate-pulse`} />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function IcebreakerPanel({
@@ -124,7 +142,9 @@ export function IcebreakerPanel({
     setTimeout(() => setCopiedIdx(null), 2000);
   }
 
-  const sections = suggestions ? parseSections(suggestions) : [];
+  const parsedSections = suggestions ? parseSections(suggestions) : [];
+  const sectionMap = new Map(parsedSections.map((s) => [s.title, s]));
+  const isStreaming = loading || (suggestions !== null);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -138,22 +158,13 @@ export function IcebreakerPanel({
         </DialogHeader>
 
         <div className="space-y-4">
-          {loading && (
-            <div className="py-12 text-center">
-              <div className="inline-block size-6 animate-spin rounded-full border-2 border-muted border-t-foreground" />
-              <p className="mt-3 text-sm text-muted-foreground">
-                Generating conversation starters...
-              </p>
-            </div>
-          )}
-
           {error && (
             <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
               {error}
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-2"
+                className="mt-2 block"
                 onClick={fetchSuggestions}
               >
                 Try again
@@ -161,45 +172,56 @@ export function IcebreakerPanel({
             </div>
           )}
 
-          {sections.map((section, i) => (
-            <Card key={i}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">{section.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {section.content
+          {(isStreaming || parsedSections.length > 0) &&
+            SECTIONS.map(({ title, skeletonWidths }, i) => {
+              const section = sectionMap.get(title);
+              const lines = section
+                ? section.content
                     .split("\n")
+                    .map((l) => l.replace(/^[-*]\s*/, "").trim())
                     .filter(Boolean)
-                    .map((line, j) => {
-                      const trimmed = line.replace(/^[-*]\s*/, "").trim();
-                      if (!trimmed) return null;
-                      const globalIdx = i * 100 + j;
-                      return (
-                        <div
-                          key={j}
-                          className="group flex items-start gap-2 rounded-md p-2 hover:bg-muted/50"
-                        >
-                          <p className="flex-1 text-sm">{trimmed}</p>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="opacity-0 group-hover:opacity-100 shrink-0"
-                            onClick={() => handleCopy(trimmed, globalIdx)}
-                          >
-                            {copiedIdx === globalIdx ? (
-                              <span className="text-xs">&#10003;</span>
-                            ) : (
-                              <span className="text-xs">&#9776;</span>
-                            )}
-                          </Button>
-                        </div>
-                      );
-                    })}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                : [];
+              const hasContent = lines.length > 0;
+
+              return (
+                <Card key={title}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {hasContent ? (
+                      <div className="space-y-2">
+                        {lines.map((line, j) => {
+                          const globalIdx = i * 100 + j;
+                          return (
+                            <div
+                              key={j}
+                              className="group flex items-start gap-2 rounded-md p-2 hover:bg-muted/50"
+                            >
+                              <p className="flex-1 text-sm">{line}</p>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                className="opacity-0 group-hover:opacity-100 shrink-0"
+                                onClick={() => handleCopy(line, globalIdx)}
+                              >
+                                {copiedIdx === globalIdx ? (
+                                  <span className="text-xs">&#10003;</span>
+                                ) : (
+                                  <span className="text-xs">&#9776;</span>
+                                )}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <SectionSkeleton widths={skeletonWidths} />
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
         </div>
       </DialogContent>
     </Dialog>
