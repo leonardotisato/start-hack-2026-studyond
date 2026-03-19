@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 const NAV_LINKS = [
   { href: "/profile", label: "Profile" },
   { href: "/network", label: "Network" },
-  { href: "/interview", label: "Interview Prep" },
+  { href: "/orientation", label: "Orientation" },
   { href: "/planner", label: "Planner" },
   { href: "/thesis-gps", label: "Thesis GPS" },
 ];
