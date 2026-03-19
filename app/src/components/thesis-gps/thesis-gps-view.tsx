@@ -19,7 +19,7 @@ import "@xyflow/react/dist/style.css";
 import { gpsNodeTypes, type GpsNodeData, type ScoutNodeData } from "./gps-node";
 import { NodeDetailPanel } from "./node-detail-panel";
 import { GpsChatPanel, type ChatMessage } from "./gps-chat-panel";
-import type { GpsGraph, GpsNode, GpsEdge, GpsProposal, Recommendation, ScoutMessage } from "@/types/gps";
+import type { GpsGraph, GpsNode, GpsEdge, GpsProposal, Recommendation, ScoutMessage, ContextSource, ScoutConversationAttachment } from "@/types/gps";
 import {
   computeNodeStates,
   layoutGraph,
@@ -363,6 +363,7 @@ function ThesisGpsViewInner({
       const decoder = new TextDecoder();
       let buffer = "";
       let pendingRecs: Recommendation[] = [];
+      let noResultsMessage = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -377,7 +378,7 @@ function ThesisGpsViewInner({
           const json = line.slice(6).trim();
           if (!json) continue;
 
-          let event: { type: string; text?: string; proposal?: GpsProposal & { dismissSuggestionIds?: string[] }; recommendations?: Recommendation[] };
+          let event: { type: string; text?: string; proposal?: GpsProposal & { dismissSuggestionIds?: string[] }; recommendations?: Recommendation[]; searchType?: string; reason?: string };
           try { event = JSON.parse(json); } catch { continue; }
 
           if (event.type === "status" && event.text) {
@@ -387,6 +388,8 @@ function ThesisGpsViewInner({
               ...prev,
               [nodeId]: [...(prev[nodeId] ?? []), { role: "user", content: message }, { role: "scout", content: `Error: ${event.text ?? "Something went wrong."}` }],
             }));
+          } else if (event.type === "noResults") {
+            noResultsMessage = `No matching ${event.searchType === "all" ? "results" : `${event.searchType}s`} found in the Studyond database for this request.`;
           } else if (event.type === "recommendations" && event.recommendations) {
             pendingRecs = event.recommendations;
 
@@ -476,9 +479,13 @@ function ThesisGpsViewInner({
               });
             }
 
+            const finalMessage = noResultsMessage
+              ? `${proposal.message}\n\n⚠️ ${noResultsMessage}`
+              : proposal.message;
+
             const scoutMsg: ScoutMessage = {
               role: "scout",
-              content: proposal.message,
+              content: finalMessage,
               hasProposal: hasChanges,
               recommendations: pendingRecs.length > 0 ? pendingRecs : undefined,
             };
@@ -548,16 +555,32 @@ function ThesisGpsViewInner({
   }
 
   // --- Chat with main agent (streaming) ---
-  async function handleSendMessage(userMessage: string) {
+  async function handleSendMessage(userMessage: string, attachedContext: ContextSource[], attachedScoutNodeIds: string[]) {
     onMessagesChange((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
     setStatusSteps([]);
+
+    const scoutAttachments: ScoutConversationAttachment[] = attachedScoutNodeIds
+      .filter((id) => scoutConversations[id]?.length > 0)
+      .map((id) => ({
+        nodeId: id,
+        nodeLabel: graph.nodes.find((n) => n.id === id)?.label ?? id,
+        messages: scoutConversations[id].map((m) => ({ role: m.role, content: m.content })),
+      }));
 
     try {
       const res = await fetch("/api/thesis-gps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ graph, projectId, userMessage, completedSubtasks, conversationHistory: messages }),
+        body: JSON.stringify({
+          graph,
+          projectId,
+          userMessage,
+          completedSubtasks,
+          conversationHistory: messages,
+          attachedContext: attachedContext.length > 0 ? attachedContext : undefined,
+          attachedScoutConversations: scoutAttachments.length > 0 ? scoutAttachments : undefined,
+        }),
       });
 
       if (!res.body) throw new Error("No response body");
@@ -566,6 +589,7 @@ function ThesisGpsViewInner({
       const decoder = new TextDecoder();
       let buffer = "";
       let pendingRecs: Recommendation[] = [];
+      let noResultsMessage = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -580,7 +604,7 @@ function ThesisGpsViewInner({
           const json = line.slice(6).trim();
           if (!json) continue;
 
-          let event: { type: string; text?: string; proposal?: GpsProposal; recommendations?: Recommendation[] };
+          let event: { type: string; text?: string; proposal?: GpsProposal; recommendations?: Recommendation[]; searchType?: string; reason?: string };
           try { event = JSON.parse(json); } catch { continue; }
 
           if (event.type === "status" && event.text) {
@@ -590,8 +614,73 @@ function ThesisGpsViewInner({
               ...prev,
               { role: "agent", content: `Error: ${event.text ?? "Something went wrong."}` },
             ]);
+          } else if (event.type === "noResults") {
+            noResultsMessage = `No matching ${event.searchType === "all" ? "results" : `${event.searchType}s`} found in the Studyond database for this request.`;
           } else if (event.type === "recommendations" && event.recommendations) {
             pendingRecs = event.recommendations;
+
+            const activeNode = computedNodes.find((n) => n.state === "active");
+            const anchorId = activeNode?.id ?? computedNodes[0]?.id;
+            const anchorPos = anchorId
+              ? positions.get(anchorId) ?? { x: 400, y: 200 }
+              : { x: 400, y: 200 };
+
+            const occupiedAreas = [
+              ...[...positions.entries()].map(([, pos]) => ({ x: pos.x, y: pos.y, w: 240, h: 120 })),
+              ...scoutNodes.map((n) => ({ x: n.position.x, y: n.position.y, w: 260, h: 160 })),
+            ];
+
+            const cardW = 260;
+            const gap = 20;
+            const count = event.recommendations.length;
+            const totalW = count * cardW + (count - 1) * gap;
+            const startX = anchorPos.x - totalW / 2 + cardW / 2;
+            let baseY = anchorPos.y + 180;
+
+            const wouldOverlap = (y: number) =>
+              occupiedAreas.some(
+                (area) =>
+                  Math.abs(area.y - y) < 140 &&
+                  startX < area.x + area.w &&
+                  startX + totalW > area.x,
+              );
+            while (wouldOverlap(baseY)) baseY += 160;
+
+            const prefix = `gps-rec`;
+            const newNodes: Node[] = event.recommendations.map((rec, i) => ({
+              id: `${prefix}-${rec.id}`,
+              type: "scoutResult",
+              position: { x: startX + i * (cardW + gap), y: baseY },
+              data: {
+                name: rec.name,
+                title: rec.title,
+                affiliation: rec.affiliation,
+                email: rec.email,
+                type: rec.type,
+                matchScore: rec.matchScore,
+                fieldNames: rec.fieldNames,
+              } satisfies ScoutNodeData,
+            }));
+
+            const newEdges: Edge[] = anchorId
+              ? event.recommendations.map((rec) => ({
+                  id: `gps-rec-edge-${rec.id}`,
+                  source: anchorId,
+                  target: `${prefix}-${rec.id}`,
+                  sourceHandle: "scout-source",
+                  targetHandle: "scout-target",
+                  animated: true,
+                  style: { stroke: "#3b82f6", strokeWidth: 1.5, strokeDasharray: "4 4" },
+                  markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: "#3b82f6" },
+                }))
+              : [];
+
+            setScoutNodes((prev) => [...prev.filter((n) => !n.id.startsWith(`${prefix}-`)), ...newNodes]);
+            setScoutEdges((prev) => [...prev.filter((e) => !e.id.startsWith(`gps-rec-edge-`)), ...newEdges]);
+
+            setTimeout(() => {
+              fitView({ nodes: newNodes, padding: 0.3, maxZoom: 1.2, duration: 500 });
+            }, 100);
           } else if (event.type === "done" && event.proposal) {
             const proposal = event.proposal;
             const hasChanges =
@@ -602,11 +691,15 @@ function ThesisGpsViewInner({
               proposal.removeEdgeIds.length > 0 ||
               (proposal.completeSubtasks?.length ?? 0) > 0;
 
+            const finalMessage = noResultsMessage
+              ? `${proposal.message}\n\n⚠️ ${noResultsMessage}`
+              : proposal.message;
+
             onMessagesChange((prev) => [
               ...prev,
               {
                 role: "agent",
-                content: proposal.message,
+                content: finalMessage,
                 hasProposal: hasChanges,
                 recommendations: pendingRecs.length > 0 ? pendingRecs : undefined,
               },
@@ -780,6 +873,15 @@ function ThesisGpsViewInner({
           proposalDetail={pendingProposal}
           onAcceptProposal={handleAcceptProposal}
           onRejectProposal={handleRejectProposal}
+          scoutConversations={
+            Object.entries(scoutConversations)
+              .filter(([, msgs]) => msgs.length > 0)
+              .map(([nodeId, msgs]) => ({
+                nodeId,
+                nodeLabel: graph.nodes.find((n) => n.id === nodeId)?.label ?? nodeId,
+                messageCount: msgs.length,
+              }))
+          }
         />
       </div>
     </div>
