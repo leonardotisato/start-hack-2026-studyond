@@ -34,16 +34,24 @@ function formatDateStr(year: number, month: number, day: number) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+const APPROVAL_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  pending: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-300" },
+  approved: { bg: "bg-green-50", text: "text-green-700", border: "border-green-300" },
+  rejected: { bg: "bg-red-50", text: "text-red-700", border: "border-red-300" },
+};
+
 interface CalendarViewProps {
   events: WorkspaceEvent[];
   onEventsChange: React.Dispatch<React.SetStateAction<WorkspaceEvent[]>>;
   graphEventIds?: Set<string>;
+  previewEventIds?: Set<string>;
 }
 
 export function CalendarView({
   events,
   onEventsChange,
   graphEventIds = new Set(),
+  previewEventIds = new Set(),
 }: CalendarViewProps) {
   const [year, setYear] = useState<number | null>(null);
   const [month, setMonth] = useState<number | null>(null);
@@ -172,20 +180,36 @@ export function CalendarView({
               </div>
               {dayEvents.map((ev) => {
                 const isGraphEvent = graphEventIds.has(ev.id);
+                const isPreview = previewEventIds.has(ev.id);
+                const isPending = ev.approvalStatus === "pending";
+                const isRejected = ev.approvalStatus === "rejected";
+
+                if (isPreview) {
+                  return (
+                    <div
+                      key={ev.id}
+                      className="text-[10px] leading-tight rounded px-1 py-0.5 mb-0.5 truncate border-2 border-dashed border-violet-400 text-violet-700 bg-violet-50 animate-pulse"
+                      title={`${ev.label} (proposed — review in chat)`}
+                    >
+                      {ev.label}
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={ev.id}
-                    className={`text-[10px] leading-tight rounded px-1 py-0.5 mb-0.5 truncate text-white cursor-pointer hover:opacity-80 ${
-                      isGraphEvent ? "border border-white/30" : ""
-                    }`}
-                    style={{ background: TYPE_COLORS[ev.type] }}
-                    title={`${ev.label}${isGraphEvent ? " (from graph)" : ""}`}
+                    className={`text-[10px] leading-tight rounded px-1 py-0.5 mb-0.5 truncate cursor-pointer hover:opacity-80 ${
+                      isGraphEvent ? "border border-white/30 text-white" : ""
+                    } ${isPending ? "border-2 border-dashed border-amber-400 text-amber-800 bg-amber-50" : isRejected ? "line-through opacity-50 text-white" : "text-white"}`}
+                    style={!isPending && !isRejected ? { background: TYPE_COLORS[ev.type] } : isRejected ? { background: TYPE_COLORS[ev.type] } : undefined}
+                    title={`${ev.label}${isPending ? " (pending approval)" : ""}${isGraphEvent ? " (from graph)" : ""}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedEvent(ev);
                     }}
                   >
-                    {ev.label}
+                    {isPending ? "⏳ " : ""}{ev.label}
                   </div>
                 );
               })}
@@ -195,13 +219,25 @@ export function CalendarView({
       </div>
 
       {/* Legend */}
-      <div className="flex gap-4 text-xs text-muted-foreground">
+      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
         {Object.entries(TYPE_COLORS).map(([type, color]) => (
           <div key={type} className="flex items-center gap-1">
             <div className="h-2 w-2 rounded-full" style={{ background: color }} />
             <span className="capitalize">{type}</span>
           </div>
         ))}
+        {previewEventIds.size > 0 && (
+          <div className="flex items-center gap-1">
+            <div className="h-2 w-2 rounded-full border-2 border-dashed border-violet-400 bg-violet-50" />
+            <span>Proposed</span>
+          </div>
+        )}
+        {events.some((e) => e.approvalStatus === "pending") && (
+          <div className="flex items-center gap-1">
+            <div className="h-2 w-2 rounded-full border-2 border-dashed border-amber-400 bg-amber-50" />
+            <span>Pending approval</span>
+          </div>
+        )}
         <span className="ml-auto">Click a day to add an event</span>
       </div>
 
@@ -254,9 +290,19 @@ export function CalendarView({
               )}
             </div>
             <p className="text-muted-foreground">Date: {selectedEvent?.date}</p>
+            {selectedEvent?.attendees && selectedEvent.attendees.length > 0 && (
+              <p className="text-muted-foreground">Attendees: {selectedEvent.attendees.join(", ")}</p>
+            )}
+            {selectedEvent?.approvalStatus && (
+              <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border ${APPROVAL_COLORS[selectedEvent.approvalStatus].bg} ${APPROVAL_COLORS[selectedEvent.approvalStatus].text} ${APPROVAL_COLORS[selectedEvent.approvalStatus].border}`}>
+                {selectedEvent.approvalStatus === "pending" && "Waiting for supervisor approval"}
+                {selectedEvent.approvalStatus === "approved" && "Approved by supervisor"}
+                {selectedEvent.approvalStatus === "rejected" && "Declined by supervisor"}
+              </div>
+            )}
           </div>
           <DialogFooter>
-            {selectedEvent && !graphEventIds.has(selectedEvent.id) && (
+            {selectedEvent && !graphEventIds.has(selectedEvent.id) && selectedEvent.approvalStatus !== "pending" && (
               <Button
                 variant="destructive"
                 size="sm"

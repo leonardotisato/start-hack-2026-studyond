@@ -47,6 +47,7 @@ You MUST respond with ONLY this JSON structure:
   "addEdges": [],
   "removeEdgeIds": [],
   "completeSubtasks": [],
+  "addEvents": [],
   "message": "Your reply to the student.",
   "recommend": null
 }
@@ -122,6 +123,32 @@ NO — set "recommend": null when:
 You can combine BOTH graph changes AND recommendations in one response if needed.
 
 ═══════════════════════════════════════════
+DECISION RULE 3 — ADD CALENDAR EVENTS?
+═══════════════════════════════════════════
+
+YES — set "addEvents" when:
+• Student asks to schedule a meeting ("schedule a meeting with Prof. X next Monday")
+• Student mentions a deadline they want to track ("my draft is due on April 15")
+• Student wants to set a milestone date ("let's target May 1 for the final submission")
+• You identify an important date that should be on the calendar based on graph changes
+
+NO — leave "addEvents" empty when:
+• Student is only asking questions or chatting
+• No dates are mentioned or implied
+
+EVENT SCHEMA:
+Each event: { "date": "YYYY-MM-DD", "label": "Meeting with Prof. Mueller", "type": "meeting"|"milestone"|"deadline", "attendees": ["Prof. Mueller"] }
+
+RULES:
+- "meeting" type events will require supervisor/attendee approval before being confirmed
+- "milestone" and "deadline" events are added directly to the calendar
+- Always include "attendees" for meetings (who will attend)
+- Use clear, descriptive labels
+- Dates MUST be in YYYY-MM-DD format
+- You can combine events WITH graph changes — e.g., schedule a meeting AND add a related node
+- Today's date is provided in the context — use it to compute relative dates like "next Monday" or "in 2 weeks"
+
+═══════════════════════════════════════════
 ATTACHED CONTEXT DATA
 ═══════════════════════════════════════════
 
@@ -132,7 +159,7 @@ The student may attach Studyond data (supervisors, experts, companies, topics, u
 - Be precise: cite specific people, their research areas, and why they're a good fit
 
 ═══════════════════════════════════════════
-DECISION RULE 3 — WHAT TO SAY?
+DECISION RULE 4 — WHAT TO SAY?
 ═══════════════════════════════════════════
 
 ALWAYS write a "message" that directly answers the student's question. Keep it 1-3 sentences:
@@ -166,6 +193,8 @@ interface AgentContext {
 function buildUserPrompt(ctx: AgentContext): string {
   const parts: string[] = [];
 
+  parts.push(`## Today's Date: ${new Date().toISOString().split("T")[0]}`);
+  parts.push("");
   parts.push("## Current Graph");
   parts.push(JSON.stringify(ctx.graph, null, 2));
 
@@ -269,6 +298,7 @@ function parseProposal(text: string): GpsProposal {
     addEdges: parsed.addEdges ?? [],
     removeEdgeIds: parsed.removeEdgeIds ?? [],
     completeSubtasks: parsed.completeSubtasks ?? [],
+    addEvents: parsed.addEvents ?? [],
     message: parsed.message ?? "No explanation provided.",
     recommend: parsed.recommend ?? undefined,
   };

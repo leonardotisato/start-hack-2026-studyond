@@ -38,6 +38,15 @@ export interface GpsSubtaskCompletion {
   subtaskIndices: number[]; // indices of subtasks to mark as completed
 }
 
+export type ProposedEventType = "milestone" | "meeting" | "deadline";
+
+export interface ProposedEvent {
+  date: string; // YYYY-MM-DD
+  label: string;
+  type: ProposedEventType;
+  attendees?: string[]; // e.g. ["Prof. Mueller", "Student"]
+}
+
 export interface GpsProposal {
   addNodes: GpsNode[];
   updateNodes: GpsNodeUpdate[];
@@ -45,6 +54,7 @@ export interface GpsProposal {
   addEdges: GpsEdge[];
   removeEdgeIds: string[];
   completeSubtasks: GpsSubtaskCompletion[];
+  addEvents: ProposedEvent[];
   message: string;
   recommend?: RecommendationRequest;
 }

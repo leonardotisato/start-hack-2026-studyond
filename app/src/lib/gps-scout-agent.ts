@@ -179,6 +179,7 @@ function parseProposal(text: string): ScoutProposal {
     addEdges: parsed.addEdges ?? [],
     removeEdgeIds: parsed.removeEdgeIds ?? [],
     completeSubtasks: parsed.completeSubtasks ?? [],
+    addEvents: parsed.addEvents ?? [],
     message: parsed.message ?? "No explanation provided.",
     recommend: parsed.recommend ?? undefined,
     dismissSuggestionIds: parsed.dismissSuggestionIds ?? [],

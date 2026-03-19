@@ -376,6 +376,41 @@ export function GpsChatPanel({
                 </div>
               )}
 
+              {proposalDetail.addEvents?.length > 0 &&
+                proposalDetail.addEvents.map((ev, i) => (
+                  <div
+                    key={`event-${i}`}
+                    className="flex items-start gap-2 rounded-md border-l-4 border-blue-500 bg-blue-50 px-3 py-2"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#2563eb"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="shrink-0 mt-0.5"
+                    >
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                      <line x1="16" y1="2" x2="16" y2="6" />
+                      <line x1="8" y1="2" x2="8" y2="6" />
+                      <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    <div className="text-xs">
+                      <p className="font-semibold text-blue-900">{ev.label}</p>
+                      <p className="text-blue-800/70">
+                        {ev.date} · <span className="capitalize">{ev.type}</span>
+                        {ev.type === "meeting" && " (requires approval)"}
+                      </p>
+                      {ev.attendees && ev.attendees.length > 0 && (
+                        <p className="text-blue-800/70">With: {ev.attendees.join(", ")}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
               {proposalDetail.completeSubtasks?.length > 0 &&
                 proposalDetail.completeSubtasks.map((c) => (
                   <div
