@@ -482,59 +482,6 @@ export function GpsChatPanel({
             })}
           </div>
         )}
-      {/* Input — pinned to bottom */}
-      <div className="border-t p-3 shrink-0">
-        <div className="flex items-end gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              isTranscribing ? "Transcribing..." : "Ask the agent..."
-            }
-            className="min-h-[40px] max-h-[100px] resize-none text-sm"
-            rows={1}
-            disabled={isRecording || isTranscribing}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-          />
-          {input.trim() ? (
-            <Button
-              size="icon"
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="shrink-0 rounded-full size-9"
-            >
-              <ArrowUp className="size-4" />
-            </Button>
-          ) : isRecording ? (
-            <Button
-              size="icon"
-              variant="destructive"
-              onClick={stopRecording}
-              className="shrink-0 rounded-full size-9 animate-pulse"
-            >
-              <Square className="size-3.5" />
-            </Button>
-          ) : (
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={startRecording}
-              disabled={isLoading || isTranscribing}
-              className="shrink-0 rounded-full size-9"
-            >
-              <Mic className="size-4" />
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
         <div className="p-3">
           {/* Context add button + dropdown */}
@@ -616,13 +563,16 @@ export function GpsChatPanel({
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-end gap-2">
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask the agent..."
+              placeholder={
+                isTranscribing ? "Transcribing..." : "Ask the agent..."
+              }
               className="min-h-[40px] max-h-[100px] resize-none text-sm"
               rows={1}
+              disabled={isRecording || isTranscribing}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -630,13 +580,35 @@ export function GpsChatPanel({
                 }
               }}
             />
-            <Button
-              onClick={handleSubmit}
-              disabled={isLoading || !input.trim()}
-              className="shrink-0"
-            >
-              Send
-            </Button>
+            {input.trim() ? (
+              <Button
+                size="icon"
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="shrink-0 rounded-full size-9"
+              >
+                <ArrowUp className="size-4" />
+              </Button>
+            ) : isRecording ? (
+              <Button
+                size="icon"
+                variant="destructive"
+                onClick={stopRecording}
+                className="shrink-0 rounded-full size-9 animate-pulse"
+              >
+                <Square className="size-3.5" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={startRecording}
+                disabled={isLoading || isTranscribing}
+                className="shrink-0 rounded-full size-9"
+              >
+                <Mic className="size-4" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
