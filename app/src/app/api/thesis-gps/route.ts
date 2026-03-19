@@ -7,7 +7,7 @@ import type { GpsAgentRequest, GpsAgentResponse } from "@/types/gps";
 
 export async function POST(req: NextRequest) {
   const body: GpsAgentRequest = await req.json();
-  const { graph, projectId, userMessage } = body;
+  const { graph, projectId, userMessage, completedSubtasks } = body;
 
   const project = await getProject(projectId);
   if (!project) {
@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       topic,
       supervisor,
       userMessage,
+      completedSubtasks: completedSubtasks ?? {},
     });
 
     const response: GpsAgentResponse = { proposal };

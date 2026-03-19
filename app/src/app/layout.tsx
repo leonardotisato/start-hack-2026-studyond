@@ -21,7 +21,7 @@ const NAV_LINKS = [
   { href: "/profile", label: "Profile" },
   { href: "/network", label: "Network" },
   { href: "/interview", label: "Interview Prep" },
-  { href: "/planner", label: "Workspace" },
+  { href: "/planner", label: "Thesis GPS" },
 ];
 
 export default function RootLayout({

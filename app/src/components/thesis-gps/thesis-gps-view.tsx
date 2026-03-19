@@ -244,7 +244,7 @@ export function ThesisGpsView({
       const res = await fetch("/api/thesis-gps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ graph, projectId, userMessage }),
+        body: JSON.stringify({ graph, projectId, userMessage, completedSubtasks }),
       });
       const data = await res.json();
       if (!res.ok) {

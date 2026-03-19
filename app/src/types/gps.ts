@@ -48,6 +48,7 @@ export interface GpsAgentRequest {
   graph: GpsGraph;
   projectId: string;
   userMessage?: string;
+  completedSubtasks?: Record<string, number[]>;
 }
 
 export interface GpsAgentResponse {

@@ -35,14 +35,15 @@ const SYSTEM_PROMPT = `You are a Thesis GPS agent — a proactive academic advis
 
 You receive:
 - The current thesis pipeline graph (nodes and edges in JSON)
-- The student's project context (topic, supervisor, current state)
+- Subtask completion status showing which subtasks the student has checked off
+- The student's project context (topic, supervisor, current state, skills, objectives)
 - An optional message from the student
 
 Your job is to analyze the graph, detect issues, and propose changes. You MUST respond with valid JSON matching this exact structure:
 
 {
   "addNodes": [{ "id": "string", "label": "string", "state": "upcoming", "description": "string", "estimatedDate": "YYYY-MM-DD", "subtasks": ["string"] }],
-  "updateNodes": [{ "id": "string", "patch": { "state": "completed" | "active" | "upcoming" | "blocked", "label": "string", ... } }],
+  "updateNodes": [{ "id": "string", "patch": { "label": "string", "description": "string", "subtasks": ["string"], "estimatedDate": "YYYY-MM-DD" } }],
   "removeNodeIds": ["string"],
   "addEdges": [{ "id": "string", "source": "string", "target": "string", "label": "string", "isSuggestion": true }],
   "removeEdgeIds": ["string"],
@@ -50,14 +51,18 @@ Your job is to analyze the graph, detect issues, and propose changes. You MUST r
 }
 
 Rules:
-- Node states: "completed" (done), "active" (current step), "upcoming" (future), "blocked" (can't proceed until dependency is resolved)
-- Only ONE node should be "active" at a time
+- Node states are computed automatically from subtask completion and edge dependencies — do NOT set "state" in addNodes or updateNodes patches. Always use "upcoming" for new nodes.
+- A node becomes "active" (interactable) when all its predecessors are completed. A node becomes "completed" when all its subtasks are checked off.
+- CRITICAL: Every new node MUST have a "subtasks" array with at least 2-3 concrete, actionable subtasks. Nodes without subtasks are auto-completed and cannot be interacted with by the student.
+- When updating a node's subtasks, include the FULL subtask list (existing + new), not just the new ones.
 - Edges define dependencies: source must be completed before target can become active
 - When suggesting alternative paths, set isSuggestion: true on those edges
 - Be proactive: if the student seems stuck, suggest concrete next actions
-- Be specific: reference the student's actual topic, not generic advice
+- Be specific: reference the student's actual topic, skills, and context — not generic advice
+- Use the subtask completion status to understand where the student is and tailor your advice
 - Keep the graph manageable: 5-12 nodes is the sweet spot
 - Always include a "message" explaining what you changed and why
+- When the student asks to modify the graph, apply the changes to the current version provided in the prompt
 
 Respond with ONLY the JSON object, no markdown fences, no extra text.`;
 
@@ -68,6 +73,7 @@ interface AgentContext {
   topic?: Topic | null;
   supervisor?: Supervisor | null;
   userMessage?: string;
+  completedSubtasks?: Record<string, number[]>;
 }
 
 function buildUserPrompt(ctx: AgentContext): string {
@@ -75,6 +81,24 @@ function buildUserPrompt(ctx: AgentContext): string {
 
   parts.push("## Current Graph");
   parts.push(JSON.stringify(ctx.graph, null, 2));
+
+  // Include subtask completion status so the agent knows progress
+  const completed = ctx.completedSubtasks ?? {};
+  if (Object.keys(completed).length > 0) {
+    parts.push("\n## Subtask Completion Status");
+    for (const node of ctx.graph.nodes) {
+      if (!node.subtasks || node.subtasks.length === 0) continue;
+      const doneIndices = completed[node.id] ?? [];
+      const doneCount = doneIndices.length;
+      const total = node.subtasks.length;
+      const status = doneCount >= total ? "COMPLETED" : doneCount > 0 ? "IN PROGRESS" : "NOT STARTED";
+      parts.push(`- **${node.label}** (${node.id}): ${doneCount}/${total} subtasks done [${status}]`);
+      for (let i = 0; i < node.subtasks.length; i++) {
+        const check = doneIndices.includes(i) ? "[x]" : "[ ]";
+        parts.push(`  ${check} ${node.subtasks[i]}`);
+      }
+    }
+  }
 
   parts.push("\n## Project Context");
   parts.push(`- Title: ${ctx.project.title}`);
@@ -87,18 +111,23 @@ function buildUserPrompt(ctx: AgentContext): string {
     parts.push(`- Name: ${ctx.student.firstName} ${ctx.student.lastName}`);
     parts.push(`- Degree: ${ctx.student.degree}`);
     parts.push(`- Skills: ${ctx.student.skills.join(", ")}`);
+    if (ctx.student.about) parts.push(`- About: ${ctx.student.about}`);
+    if (ctx.student.objectives.length > 0) parts.push(`- Objectives: ${ctx.student.objectives.join(", ")}`);
   }
 
   if (ctx.topic) {
     parts.push(`\n## Topic`);
     parts.push(`- Title: ${ctx.topic.title}`);
     parts.push(`- Description: ${ctx.topic.description}`);
+    if (ctx.topic.degrees.length > 0) parts.push(`- Target degrees: ${ctx.topic.degrees.join(", ")}`);
   }
 
   if (ctx.supervisor) {
     parts.push(`\n## Supervisor`);
     parts.push(`- Name: ${ctx.supervisor.firstName} ${ctx.supervisor.lastName}`);
+    parts.push(`- Title: ${ctx.supervisor.title}`);
     parts.push(`- Research Interests: ${ctx.supervisor.researchInterests.join(", ")}`);
+    if (ctx.supervisor.about) parts.push(`- About: ${ctx.supervisor.about}`);
   }
 
   if (ctx.userMessage) {

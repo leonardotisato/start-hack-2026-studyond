@@ -16,13 +16,9 @@ const FEATURES = [
   },
   {
     href: "/planner",
-    title: "Shared Planning Space",
-    description: "Collaborative workspace with milestone tracking.",
-  },
-  {
-    href: "/thesis-gps",
     title: "Thesis GPS",
-    description: "Navigate your thesis journey with a dynamic pipeline graph.",
+    description:
+      "Navigate your thesis with a dynamic pipeline graph, task board, calendar, and milestone tracking.",
   },
 ];
 
