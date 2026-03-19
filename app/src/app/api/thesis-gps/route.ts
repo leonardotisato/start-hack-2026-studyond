@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runGpsAgent } from "@/lib/gps-agent";
 import { mockAgentProposal } from "@/lib/gps-mock";
 import { getProject, getStudent, getTopic, getSupervisor } from "@/lib/data";
-import { buildDefaultGraph } from "@/lib/gps-defaults";
+import { DEFAULT_GRAPH } from "@/lib/gps-defaults";
 import type { GpsAgentRequest, GpsAgentResponse } from "@/types/gps";
 
 export async function POST(req: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   ]);
 
   const currentGraph =
-    graph.nodes.length > 0 ? graph : buildDefaultGraph(project.state);
+    graph.nodes.length > 0 ? graph : DEFAULT_GRAPH;
 
   try {
     const proposal = await runGpsAgent({

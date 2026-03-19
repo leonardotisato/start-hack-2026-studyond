@@ -27,7 +27,7 @@ function getDaysInMonth(year: number, month: number) {
 
 function getFirstDayOfMonth(year: number, month: number) {
   const day = new Date(year, month, 1).getDay();
-  return day === 0 ? 6 : day - 1; // Monday = 0
+  return day === 0 ? 6 : day - 1;
 }
 
 function formatDateStr(year: number, month: number, day: number) {
@@ -37,19 +37,21 @@ function formatDateStr(year: number, month: number, day: number) {
 interface CalendarViewProps {
   events: WorkspaceEvent[];
   onEventsChange: React.Dispatch<React.SetStateAction<WorkspaceEvent[]>>;
+  graphEventIds?: Set<string>;
 }
 
-export function CalendarView({ events, onEventsChange }: CalendarViewProps) {
+export function CalendarView({
+  events,
+  onEventsChange,
+  graphEventIds = new Set(),
+}: CalendarViewProps) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
 
-  // Dialog state for adding events
   const [addDialogDate, setAddDialogDate] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
   const [newType, setNewType] = useState<EventType>("meeting");
-
-  // Dialog state for event detail
   const [selectedEvent, setSelectedEvent] = useState<WorkspaceEvent | null>(null);
 
   const monthLabel = new Date(year, month).toLocaleDateString("en-CH", {
@@ -72,13 +74,17 @@ export function CalendarView({ events, onEventsChange }: CalendarViewProps) {
   }
 
   function prevMonth() {
-    if (month === 0) { setMonth(11); setYear(year - 1); }
-    else setMonth(month - 1);
+    if (month === 0) {
+      setMonth(11);
+      setYear(year - 1);
+    } else setMonth(month - 1);
   }
 
   function nextMonth() {
-    if (month === 11) { setMonth(0); setYear(year + 1); }
-    else setMonth(month + 1);
+    if (month === 11) {
+      setMonth(0);
+      setYear(year + 1);
+    } else setMonth(month + 1);
   }
 
   function handleDayClick(day: number) {
@@ -101,6 +107,7 @@ export function CalendarView({ events, onEventsChange }: CalendarViewProps) {
   }
 
   function handleDeleteEvent(id: string) {
+    if (graphEventIds.has(id)) return; // can't delete graph-derived events
     onEventsChange((prev) => prev.filter((e) => e.id !== id));
     setSelectedEvent(null);
   }
@@ -111,9 +118,13 @@ export function CalendarView({ events, onEventsChange }: CalendarViewProps) {
     <div className="space-y-3">
       {/* Month navigation */}
       <div className="flex items-center justify-between">
-        <button onClick={prevMonth} className="rounded-md px-2 py-1 text-sm hover:bg-accent transition">&larr;</button>
+        <button onClick={prevMonth} className="rounded-md px-2 py-1 text-sm hover:bg-accent transition">
+          &larr;
+        </button>
         <span className="text-sm font-semibold">{monthLabel}</span>
-        <button onClick={nextMonth} className="rounded-md px-2 py-1 text-sm hover:bg-accent transition">&rarr;</button>
+        <button onClick={nextMonth} className="rounded-md px-2 py-1 text-sm hover:bg-accent transition">
+          &rarr;
+        </button>
       </div>
 
       {/* Day headers */}
@@ -147,17 +158,25 @@ export function CalendarView({ events, onEventsChange }: CalendarViewProps) {
               >
                 {day}
               </div>
-              {dayEvents.map((ev) => (
-                <div
-                  key={ev.id}
-                  className="text-[10px] leading-tight rounded px-1 py-0.5 mb-0.5 truncate text-white cursor-pointer hover:opacity-80"
-                  style={{ background: TYPE_COLORS[ev.type] }}
-                  title={ev.label}
-                  onClick={(e) => { e.stopPropagation(); setSelectedEvent(ev); }}
-                >
-                  {ev.label}
-                </div>
-              ))}
+              {dayEvents.map((ev) => {
+                const isGraphEvent = graphEventIds.has(ev.id);
+                return (
+                  <div
+                    key={ev.id}
+                    className={`text-[10px] leading-tight rounded px-1 py-0.5 mb-0.5 truncate text-white cursor-pointer hover:opacity-80 ${
+                      isGraphEvent ? "border border-white/30" : ""
+                    }`}
+                    style={{ background: TYPE_COLORS[ev.type] }}
+                    title={`${ev.label}${isGraphEvent ? " (from graph)" : ""}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEvent(ev);
+                    }}
+                  >
+                    {ev.label}
+                  </div>
+                );
+              })}
             </div>
           );
         })}
@@ -218,17 +237,22 @@ export function CalendarView({ events, onEventsChange }: CalendarViewProps) {
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full" style={{ background: TYPE_COLORS[selectedEvent?.type ?? "meeting"] }} />
               <span className="capitalize">{selectedEvent?.type}</span>
+              {selectedEvent && graphEventIds.has(selectedEvent.id) && (
+                <span className="text-xs text-muted-foreground">(from thesis graph)</span>
+              )}
             </div>
             <p className="text-muted-foreground">Date: {selectedEvent?.date}</p>
           </div>
           <DialogFooter>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => selectedEvent && handleDeleteEvent(selectedEvent.id)}
-            >
-              Delete Event
-            </Button>
+            {selectedEvent && !graphEventIds.has(selectedEvent.id) && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => selectedEvent && handleDeleteEvent(selectedEvent.id)}
+              >
+                Delete Event
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

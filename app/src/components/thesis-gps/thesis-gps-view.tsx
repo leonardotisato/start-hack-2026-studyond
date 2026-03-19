@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   ReactFlow,
   Background,
@@ -17,8 +17,14 @@ import "@xyflow/react/dist/style.css";
 import { gpsNodeTypes, type GpsNodeData } from "./gps-node";
 import { NodeDetailPanel } from "./node-detail-panel";
 import { GpsChatPanel, type ChatMessage } from "./gps-chat-panel";
-import { GpsInitForm } from "./gps-init-form";
 import type { GpsGraph, GpsNode, GpsEdge, GpsProposal } from "@/types/gps";
+import {
+  computeNodeStates,
+  layoutGraph,
+  isBranchNode,
+  getNodeProgress,
+  isNodeInteractable,
+} from "@/lib/gps-graph-utils";
 
 /* ------------------------------------------------------------------ */
 /*  Props                                                              */
@@ -26,12 +32,13 @@ import type { GpsGraph, GpsNode, GpsEdge, GpsProposal } from "@/types/gps";
 
 interface ThesisGpsViewProps {
   projectId: string;
-  graph: GpsGraph | null;
-  onGraphChange: (g: GpsGraph | null) => void;
-  messages: ChatMessage[];
-  onMessagesChange: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+  graph: GpsGraph;
+  onGraphChange: (g: GpsGraph) => void;
   completedSubtasks: Record<string, number[]>;
   onToggleSubtask: (nodeId: string, index: number) => void;
+  onChooseBranch: (chosenNodeId: string) => void;
+  messages: ChatMessage[];
+  onMessagesChange: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -39,38 +46,51 @@ interface ThesisGpsViewProps {
 /* ------------------------------------------------------------------ */
 
 function toFlowNodes(
-  gpsNodes: GpsNode[],
+  computedNodes: GpsNode[],
+  positions: Map<string, { x: number; y: number }>,
+  completedSubtasks: Record<string, number[]>,
+  graph: GpsGraph,
   proposal?: GpsProposal | null
 ): Node[] {
   const addedIds = new Set(proposal?.addNodes.map((n) => n.id) ?? []);
   const removedIds = new Set(proposal?.removeNodeIds ?? []);
   const updatedIds = new Set(proposal?.updateNodes.map((u) => u.id) ?? []);
 
-  const allNodes = [...gpsNodes];
+  // Merge proposal addNodes for preview
+  const allComputed = [...computedNodes];
   if (proposal) {
     for (const n of proposal.addNodes) {
-      if (!allNodes.find((existing) => existing.id === n.id)) {
-        allNodes.push(n);
+      if (!allComputed.find((existing) => existing.id === n.id)) {
+        allComputed.push(n);
       }
     }
   }
 
-  const cols = new Map<number, number>();
-  return allNodes.map((node, i) => {
-    const col = Math.floor(i / 4);
-    const row = cols.get(col) ?? 0;
-    cols.set(col, row + 1);
+  // Recompute positions if we added nodes
+  const pos = proposal?.addNodes.length
+    ? layoutGraph(
+        [...graph.nodes, ...proposal.addNodes],
+        [...graph.edges, ...(proposal.addEdges ?? [])]
+      )
+    : positions;
+
+  return allComputed.map((node) => {
+    const nodePos = pos.get(node.id) ?? { x: 0, y: 0 };
+    const { done, total, fraction } = getNodeProgress(node, completedSubtasks);
 
     return {
       id: node.id,
       type: "gpsNode",
-      position: { x: col * 280 + 50, y: row * 120 + 50 },
+      position: nodePos,
       data: {
         label: node.label,
         state: node.state,
         description: node.description,
         estimatedDate: node.estimatedDate,
         subtasks: node.subtasks,
+        progress: fraction,
+        progressLabel: total > 0 ? `${done}/${total}` : undefined,
+        isBranch: isBranchNode(graph, node.id),
         isProposalAdd: addedIds.has(node.id),
         isProposalRemove: removedIds.has(node.id),
         isProposalUpdate: updatedIds.has(node.id),
@@ -79,9 +99,13 @@ function toFlowNodes(
   });
 }
 
-function toFlowEdges(gpsEdges: GpsEdge[], proposal?: GpsProposal | null): Edge[] {
+function toFlowEdges(
+  edges: GpsEdge[],
+  computedNodes: GpsNode[],
+  proposal?: GpsProposal | null
+): Edge[] {
   const removedIds = new Set(proposal?.removeEdgeIds ?? []);
-  const allEdges = [...gpsEdges];
+  const allEdges = [...edges];
   if (proposal) {
     for (const e of proposal.addEdges) {
       if (!allEdges.find((existing) => existing.id === e.id)) {
@@ -90,19 +114,43 @@ function toFlowEdges(gpsEdges: GpsEdge[], proposal?: GpsProposal | null): Edge[]
     }
   }
 
-  return allEdges.map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    label: edge.label,
-    animated: !removedIds.has(edge.id),
-    style: {
-      stroke: edge.isSuggestion ? "#f59e0b" : removedIds.has(edge.id) ? "#ef4444" : "#6b7280",
-      strokeDasharray: edge.isSuggestion ? "5 5" : undefined,
-      opacity: removedIds.has(edge.id) ? 0.3 : 1,
-    },
-    markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-  }));
+  const stateMap = new Map(computedNodes.map((n) => [n.id, n.state]));
+
+  return allEdges.map((edge) => {
+    const sourceState = stateMap.get(edge.source);
+    const targetState = stateMap.get(edge.target);
+    const isActive =
+      sourceState === "completed" &&
+      (targetState === "active" || targetState === "completed");
+    const isRemoved = removedIds.has(edge.id);
+    const isSuggestion = edge.isSuggestion;
+
+    return {
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      label: edge.label,
+      animated: isActive && !isRemoved,
+      style: {
+        stroke: isSuggestion
+          ? "#f59e0b"
+          : isRemoved
+            ? "#ef4444"
+            : isActive
+              ? "#3b82f6"
+              : "#d1d5db",
+        strokeWidth: isActive ? 2 : 1.5,
+        strokeDasharray: isSuggestion ? "5 5" : undefined,
+        opacity: isRemoved ? 0.3 : 1,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 16,
+        height: 16,
+        color: isActive ? "#3b82f6" : "#d1d5db",
+      },
+    };
+  });
 }
 
 function applyProposalToGraph(graph: GpsGraph, proposal: GpsProposal): GpsGraph {
@@ -132,60 +180,63 @@ export function ThesisGpsView({
   projectId,
   graph,
   onGraphChange,
-  messages,
-  onMessagesChange,
   completedSubtasks,
   onToggleSubtask,
+  onChooseBranch,
+  messages,
+  onMessagesChange,
 }: ThesisGpsViewProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [selectedNode, setSelectedNode] = useState<GpsNode | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingProposal, setPendingProposal] = useState<GpsProposal | null>(null);
-  const [previewGraph, setPreviewGraph] = useState<GpsGraph | null>(null);
 
-  const updateFlowFromGraph = useCallback(
-    (g: GpsGraph, proposal?: GpsProposal | null) => {
-      setNodes(toFlowNodes(g.nodes, proposal));
-      setEdges(toFlowEdges(g.edges, proposal));
-    },
-    [setNodes, setEdges]
+  // Compute states and layout
+  const computedNodes = useMemo(
+    () => computeNodeStates(graph, completedSubtasks),
+    [graph, completedSubtasks]
   );
 
-  // Sync flow when graph prop changes (e.g. loaded from localStorage)
-  useEffect(() => {
-    if (graph && !pendingProposal) {
-      updateFlowFromGraph(graph);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph]);
+  const positions = useMemo(
+    () => layoutGraph(graph.nodes, graph.edges),
+    [graph.nodes, graph.edges]
+  );
 
-  // --- Init from professor prompt ---
-  async function handleInit(professorPrompt: string) {
-    setIsLoading(true);
-    try {
-      const res = await fetch("/api/thesis-gps/init", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, professorPrompt }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        onMessagesChange([{ role: "agent", content: `Error: ${data.error ?? "Failed to initialize."}` }]);
-        return;
-      }
-      onGraphChange(data.graph);
-      onMessagesChange([{ role: "agent", content: data.message }]);
-    } catch {
-      onMessagesChange([{ role: "agent", content: "Failed to initialize. Please try again." }]);
-    } finally {
-      setIsLoading(false);
+  // Sync ReactFlow state when graph or subtasks change
+  useEffect(() => {
+    if (!pendingProposal) {
+      setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph));
+      setEdges(toFlowEdges(graph.edges, computedNodes));
     }
-  }
+  }, [computedNodes, positions, completedSubtasks, graph, setNodes, setEdges, pendingProposal]);
+
+  // Selected node with computed state
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId) return null;
+    return computedNodes.find((n) => n.id === selectedNodeId) ?? null;
+  }, [selectedNodeId, computedNodes]);
+
+  const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
+    setSelectedNodeId(node.id);
+  }, []);
+
+  const handleToggle = useCallback(
+    (index: number) => {
+      if (!selectedNodeId) return;
+      onToggleSubtask(selectedNodeId, index);
+    },
+    [selectedNodeId, onToggleSubtask]
+  );
+
+  const handleChooseBranch = useCallback(() => {
+    if (!selectedNodeId) return;
+    onChooseBranch(selectedNodeId);
+    setSelectedNodeId(null);
+  }, [selectedNodeId, onChooseBranch]);
 
   // --- Chat with agent ---
   async function handleSendMessage(userMessage: string) {
-    if (!graph) return;
     onMessagesChange((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
 
@@ -218,9 +269,9 @@ export function ThesisGpsView({
 
       if (hasChanges) {
         setPendingProposal(proposal);
-        const preview = applyProposalToGraph(graph, proposal);
-        setPreviewGraph(preview);
-        updateFlowFromGraph(graph, proposal);
+        // Show preview with proposal diff
+        setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, proposal));
+        setEdges(toFlowEdges(graph.edges, computedNodes, proposal));
       }
     } catch {
       onMessagesChange((prev) => [
@@ -232,41 +283,31 @@ export function ThesisGpsView({
     }
   }
 
-  // --- Accept / reject ---
+  // --- Accept / reject proposal ---
   function handleAcceptProposal() {
-    if (!previewGraph) return;
-    onGraphChange(previewGraph);
+    if (!pendingProposal) return;
+    const newGraph = applyProposalToGraph(graph, pendingProposal);
+    onGraphChange(newGraph);
     setPendingProposal(null);
-    setPreviewGraph(null);
-    onMessagesChange((prev) => [...prev, { role: "agent", content: "Changes applied to your graph." }]);
+    onMessagesChange((prev) => [
+      ...prev,
+      { role: "agent", content: "Changes applied to your graph." },
+    ]);
   }
 
   function handleRejectProposal() {
-    if (!graph) return;
-    updateFlowFromGraph(graph);
     setPendingProposal(null);
-    setPreviewGraph(null);
-    onMessagesChange((prev) => [...prev, { role: "agent", content: "Changes discarded." }]);
+    // Reset flow to current graph
+    setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph));
+    setEdges(toFlowEdges(graph.edges, computedNodes));
+    onMessagesChange((prev) => [
+      ...prev,
+      { role: "agent", content: "Changes discarded. The graph remains unchanged." },
+    ]);
   }
 
-  // --- Node click ---
-  const onNodeClick: NodeMouseHandler = useCallback(
-    (_, node) => {
-      const currentGraph = previewGraph ?? graph;
-      const gpsNode = currentGraph?.nodes.find((n) => n.id === node.id);
-      if (gpsNode) setSelectedNode(gpsNode);
-    },
-    [graph, previewGraph]
-  );
-
-  // --- Not initialized ---
-  if (!graph) {
-    return <GpsInitForm onSubmit={handleInit} isLoading={isLoading} />;
-  }
-
-  // --- Main view ---
   return (
-    <div className="flex gap-4 h-[600px]">
+    <div className="flex gap-4 h-[520px]">
       {/* Graph */}
       <div className="flex-1 relative rounded-lg border bg-background overflow-hidden">
         <ReactFlow
@@ -277,6 +318,7 @@ export function ThesisGpsView({
           onNodeClick={onNodeClick}
           nodeTypes={gpsNodeTypes}
           fitView
+          fitViewOptions={{ padding: 0.3 }}
           proOptions={{ hideAttribution: true }}
         >
           <Background />
@@ -286,15 +328,18 @@ export function ThesisGpsView({
         {selectedNode && (
           <NodeDetailPanel
             node={selectedNode}
-            onClose={() => setSelectedNode(null)}
+            onClose={() => setSelectedNodeId(null)}
             completedSubtasks={completedSubtasks[selectedNode.id] ?? []}
-            onToggleSubtask={(index) => onToggleSubtask(selectedNode.id, index)}
+            onToggleSubtask={handleToggle}
+            isLocked={!isNodeInteractable(graph, selectedNode.id, completedSubtasks)}
+            isBranch={isBranchNode(graph, selectedNode.id)}
+            onChooseBranch={handleChooseBranch}
           />
         )}
       </div>
 
       {/* Chat panel */}
-      <div className="w-96 shrink-0">
+      <div className="w-80 shrink-0">
         <GpsChatPanel
           messages={messages}
           onSend={handleSendMessage}
