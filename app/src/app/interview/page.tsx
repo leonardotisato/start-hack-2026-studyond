@@ -14,7 +14,9 @@ export default async function InterviewPage() {
 
   return (
     <main className="container mx-auto max-w-4xl py-10 px-4">
-      <h1 className="text-3xl font-bold mb-2">Interview Prep</h1>
+      <h1 className="font-display text-4xl font-semibold mb-2">
+        Interview Prep
+      </h1>
       <p className="text-muted-foreground mb-6">
         Select a role to generate your AI-powered preparation guide.
       </p>
