@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -20,9 +20,23 @@ import { GpsChatPanel, type ChatMessage } from "./gps-chat-panel";
 import { GpsInitForm } from "./gps-init-form";
 import type { GpsGraph, GpsNode, GpsEdge, GpsProposal } from "@/types/gps";
 
+/* ------------------------------------------------------------------ */
+/*  Props                                                              */
+/* ------------------------------------------------------------------ */
+
 interface ThesisGpsViewProps {
   projectId: string;
+  graph: GpsGraph | null;
+  onGraphChange: (g: GpsGraph | null) => void;
+  messages: ChatMessage[];
+  onMessagesChange: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+  completedSubtasks: Record<string, number[]>;
+  onToggleSubtask: (nodeId: string, index: number) => void;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
 
 function toFlowNodes(
   gpsNodes: GpsNode[],
@@ -110,12 +124,22 @@ function applyProposalToGraph(graph: GpsGraph, proposal: GpsProposal): GpsGraph 
   return { nodes: allNodes, edges: allEdges };
 }
 
-export function ThesisGpsView({ projectId }: ThesisGpsViewProps) {
-  const [graph, setGraph] = useState<GpsGraph | null>(null);
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
+
+export function ThesisGpsView({
+  projectId,
+  graph,
+  onGraphChange,
+  messages,
+  onMessagesChange,
+  completedSubtasks,
+  onToggleSubtask,
+}: ThesisGpsViewProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<GpsNode | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingProposal, setPendingProposal] = useState<GpsProposal | null>(null);
   const [previewGraph, setPreviewGraph] = useState<GpsGraph | null>(null);
@@ -128,6 +152,14 @@ export function ThesisGpsView({ projectId }: ThesisGpsViewProps) {
     [setNodes, setEdges]
   );
 
+  // Sync flow when graph prop changes (e.g. loaded from localStorage)
+  useEffect(() => {
+    if (graph && !pendingProposal) {
+      updateFlowFromGraph(graph);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graph]);
+
   // --- Init from professor prompt ---
   async function handleInit(professorPrompt: string) {
     setIsLoading(true);
@@ -139,15 +171,13 @@ export function ThesisGpsView({ projectId }: ThesisGpsViewProps) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setMessages([{ role: "agent", content: `Error: ${data.error ?? "Failed to initialize the graph."}` }]);
+        onMessagesChange([{ role: "agent", content: `Error: ${data.error ?? "Failed to initialize."}` }]);
         return;
       }
-      const newGraph: GpsGraph = data.graph;
-      setGraph(newGraph);
-      updateFlowFromGraph(newGraph);
-      setMessages([{ role: "agent", content: data.message }]);
+      onGraphChange(data.graph);
+      onMessagesChange([{ role: "agent", content: data.message }]);
     } catch {
-      setMessages([{ role: "agent", content: "Failed to initialize the graph. Please try again." }]);
+      onMessagesChange([{ role: "agent", content: "Failed to initialize. Please try again." }]);
     } finally {
       setIsLoading(false);
     }
@@ -156,8 +186,7 @@ export function ThesisGpsView({ projectId }: ThesisGpsViewProps) {
   // --- Chat with agent ---
   async function handleSendMessage(userMessage: string) {
     if (!graph) return;
-
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    onMessagesChange((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
 
     try {
@@ -168,14 +197,13 @@ export function ThesisGpsView({ projectId }: ThesisGpsViewProps) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setMessages((prev) => [
+        onMessagesChange((prev) => [
           ...prev,
           { role: "agent", content: `Error: ${data.error ?? "Something went wrong."}` },
         ]);
         return;
       }
       const proposal: GpsProposal = data.proposal;
-
       const hasChanges =
         proposal.addNodes.length > 0 ||
         proposal.updateNodes.length > 0 ||
@@ -183,20 +211,19 @@ export function ThesisGpsView({ projectId }: ThesisGpsViewProps) {
         proposal.addEdges.length > 0 ||
         proposal.removeEdgeIds.length > 0;
 
-      setMessages((prev) => [
+      onMessagesChange((prev) => [
         ...prev,
         { role: "agent", content: proposal.message, hasProposal: hasChanges },
       ]);
 
       if (hasChanges) {
         setPendingProposal(proposal);
-        // Show preview with proposal diff styling
         const preview = applyProposalToGraph(graph, proposal);
         setPreviewGraph(preview);
         updateFlowFromGraph(graph, proposal);
       }
     } catch {
-      setMessages((prev) => [
+      onMessagesChange((prev) => [
         ...prev,
         { role: "agent", content: "Something went wrong. Please try again." },
       ]);
@@ -205,14 +232,13 @@ export function ThesisGpsView({ projectId }: ThesisGpsViewProps) {
     }
   }
 
-  // --- Accept/reject proposals ---
+  // --- Accept / reject ---
   function handleAcceptProposal() {
     if (!previewGraph) return;
-    setGraph(previewGraph);
-    updateFlowFromGraph(previewGraph);
+    onGraphChange(previewGraph);
     setPendingProposal(null);
     setPreviewGraph(null);
-    setMessages((prev) => [...prev, { role: "agent", content: "Changes applied to your graph." }]);
+    onMessagesChange((prev) => [...prev, { role: "agent", content: "Changes applied to your graph." }]);
   }
 
   function handleRejectProposal() {
@@ -220,7 +246,7 @@ export function ThesisGpsView({ projectId }: ThesisGpsViewProps) {
     updateFlowFromGraph(graph);
     setPendingProposal(null);
     setPreviewGraph(null);
-    setMessages((prev) => [...prev, { role: "agent", content: "Changes discarded. The graph remains unchanged." }]);
+    onMessagesChange((prev) => [...prev, { role: "agent", content: "Changes discarded." }]);
   }
 
   // --- Node click ---
@@ -233,7 +259,7 @@ export function ThesisGpsView({ projectId }: ThesisGpsViewProps) {
     [graph, previewGraph]
   );
 
-  // --- Not initialized yet ---
+  // --- Not initialized ---
   if (!graph) {
     return <GpsInitForm onSubmit={handleInit} isLoading={isLoading} />;
   }
@@ -261,6 +287,8 @@ export function ThesisGpsView({ projectId }: ThesisGpsViewProps) {
           <NodeDetailPanel
             node={selectedNode}
             onClose={() => setSelectedNode(null)}
+            completedSubtasks={completedSubtasks[selectedNode.id] ?? []}
+            onToggleSubtask={(index) => onToggleSubtask(selectedNode.id, index)}
           />
         )}
       </div>

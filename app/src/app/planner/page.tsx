@@ -1,38 +1,22 @@
-import { getProjects } from "@/lib/data";
-import { TaskBoard } from "@/components/planner/task-board";
-import { MilestoneTracker } from "@/components/planner/milestone-tracker";
-import { CalendarView } from "@/components/planner/calendar-view";
+import { getProjects, getStudents } from "@/lib/data";
+import { WorkspaceView } from "@/components/planner/workspace-view";
 
 export default async function PlannerPage() {
-  const projects = await getProjects();
+  const [projects, students] = await Promise.all([getProjects(), getStudents()]);
+  const activeProject =
+    projects.find((p) => p.state === "in_progress") ??
+    projects.find((p) => p.state === "agreed") ??
+    projects[0];
+
+  const student = students.find((s) => s.id === activeProject.studentId);
 
   return (
-    <main className="container mx-auto max-w-7xl py-10 px-4 space-y-10">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Shared Planning Space</h1>
-        <p className="text-muted-foreground">
-          Collaborative workspace for teams and thesis milestone tracking.
-        </p>
-      </div>
-
-      {/* Task Board */}
-      <section>
-        <h2 className="text-xl font-semibold mb-4">Task Board</h2>
-        <TaskBoard />
-      </section>
-
-      {/* Bottom row: Milestone Tracker + Calendar */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border p-6">
-          <h2 className="text-xl font-semibold mb-4">Milestone Tracker</h2>
-          <MilestoneTracker projects={projects} />
-        </section>
-
-        <section className="rounded-lg border p-6">
-          <h2 className="text-xl font-semibold mb-4">Calendar</h2>
-          <CalendarView />
-        </section>
-      </div>
+    <main className="container mx-auto max-w-7xl py-6 px-4">
+      <h1 className="text-3xl font-bold mb-1">Thesis Workspace</h1>
+      <p className="text-muted-foreground mb-6">
+        {student?.firstName} {student?.lastName} &mdash; {activeProject.title}
+      </p>
+      <WorkspaceView projectId={activeProject.id} />
     </main>
   );
 }

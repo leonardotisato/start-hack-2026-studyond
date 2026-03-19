@@ -8,6 +8,8 @@ import type { GpsNode } from "@/types/gps";
 interface NodeDetailPanelProps {
   node: GpsNode;
   onClose: () => void;
+  completedSubtasks?: number[];
+  onToggleSubtask?: (index: number) => void;
 }
 
 const STATE_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -17,7 +19,7 @@ const STATE_LABELS: Record<string, { label: string; variant: "default" | "second
   blocked: { label: "Blocked", variant: "destructive" },
 };
 
-export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
+export function NodeDetailPanel({ node, onClose, completedSubtasks = [], onToggleSubtask }: NodeDetailPanelProps) {
   const stateInfo = STATE_LABELS[node.state] ?? STATE_LABELS.upcoming;
 
   return (
@@ -46,13 +48,31 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
         <>
           <Separator className="my-3" />
           <p className="text-sm font-medium mb-2">Subtasks</p>
-          <ul className="space-y-1">
-            {node.subtasks.map((task, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
-                <span className="text-muted-foreground mt-0.5">-</span>
-                <span>{task}</span>
-              </li>
-            ))}
+          <ul className="space-y-1.5">
+            {node.subtasks.map((task, i) => {
+              const isDone = completedSubtasks.includes(i);
+              return (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <button
+                    onClick={() => onToggleSubtask?.(i)}
+                    className={`mt-0.5 h-4 w-4 shrink-0 rounded border flex items-center justify-center transition ${
+                      isDone
+                        ? "bg-emerald-500 border-emerald-600 text-white"
+                        : "border-gray-300 hover:border-gray-400"
+                    }`}
+                  >
+                    {isDone && (
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                  <span className={isDone ? "line-through text-muted-foreground" : ""}>
+                    {task}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
