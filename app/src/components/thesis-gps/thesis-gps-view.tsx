@@ -45,6 +45,12 @@ interface ThesisGpsViewProps {
   recentlyAdded: Set<string>;
   scoutConversations: Record<string, ScoutMessage[]>;
   onScoutConversationsChange: React.Dispatch<React.SetStateAction<Record<string, ScoutMessage[]>>>;
+  scoutNodes: Node[];
+  onScoutNodesChange: React.Dispatch<React.SetStateAction<Node[]>>;
+  scoutEdges: Edge[];
+  onScoutEdgesChange: React.Dispatch<React.SetStateAction<Edge[]>>;
+  hiddenScoutIds: Set<string>;
+  onHiddenScoutIdsChange: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -195,6 +201,12 @@ function ThesisGpsViewInner({
   recentlyAdded,
   scoutConversations,
   onScoutConversationsChange,
+  scoutNodes,
+  onScoutNodesChange: setScoutNodes,
+  scoutEdges,
+  onScoutEdgesChange: setScoutEdges,
+  hiddenScoutIds,
+  onHiddenScoutIdsChange: setHiddenScoutIds,
 }: ThesisGpsViewProps) {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -211,11 +223,6 @@ function ThesisGpsViewInner({
   const [isScoutStreaming, setIsScoutStreaming] = useState(false);
   const [scoutStatusSteps, setScoutStatusSteps] = useState<string[]>([]);
   const [pendingScoutProposal, setPendingScoutProposal] = useState<GpsProposal | null>(null);
-
-  // Scout recommendation graph nodes
-  const [scoutNodes, setScoutNodes] = useState<Node[]>([]);
-  const [scoutEdges, setScoutEdges] = useState<Edge[]>([]);
-  const [hiddenScoutIds, setHiddenScoutIds] = useState<Set<string>>(new Set());
 
   // Compute states and layout
   const computedNodes = useMemo(

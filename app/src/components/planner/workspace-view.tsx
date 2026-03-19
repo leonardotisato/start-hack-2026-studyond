@@ -8,6 +8,7 @@ import { CalendarView } from "@/components/planner/calendar-view";
 import { MilestoneTracker } from "@/components/planner/milestone-tracker";
 import type { GpsGraph, ScoutMessage } from "@/types/gps";
 import type { ChatMessage } from "@/components/thesis-gps/gps-chat-panel";
+import type { Node, Edge } from "@xyflow/react";
 import { ConfettiCanvas, fireConfetti } from "@/components/ui/confetti";
 import { DEFAULT_GRAPH, DEFAULT_COMPLETED_SUBTASKS } from "@/lib/gps-defaults";
 import {
@@ -110,6 +111,9 @@ const STORAGE_KEYS = {
   events: "gps-events",
   messages: "gps-messages",
   scoutConversations: "gps-scout-conversations",
+  scoutNodes: "gps-scout-nodes",
+  scoutEdges: "gps-scout-edges",
+  hiddenScoutIds: "gps-hidden-scout-ids",
 } as const;
 
 function loadSession<T>(key: string, fallback: T): T {
@@ -150,6 +154,16 @@ export function WorkspaceView({
   const [scoutConversations, setScoutConversations] = useState<
     Record<string, ScoutMessage[]>
   >(() => loadSession(STORAGE_KEYS.scoutConversations, {}));
+  const [scoutNodes, setScoutNodes] = useState<Node[]>(() =>
+    loadSession(STORAGE_KEYS.scoutNodes, []),
+  );
+  const [scoutEdges, setScoutEdges] = useState<Edge[]>(() =>
+    loadSession(STORAGE_KEYS.scoutEdges, []),
+  );
+  const [hiddenScoutIds, setHiddenScoutIds] = useState<Set<string>>(() => {
+    const arr = loadSession<string[]>(STORAGE_KEYS.hiddenScoutIds, []);
+    return new Set(arr);
+  });
   const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
 
   // --- Persist to sessionStorage on changes ---
@@ -168,6 +182,15 @@ export function WorkspaceView({
   useEffect(() => {
     saveSession(STORAGE_KEYS.scoutConversations, scoutConversations);
   }, [scoutConversations]);
+  useEffect(() => {
+    saveSession(STORAGE_KEYS.scoutNodes, scoutNodes);
+  }, [scoutNodes]);
+  useEffect(() => {
+    saveSession(STORAGE_KEYS.scoutEdges, scoutEdges);
+  }, [scoutEdges]);
+  useEffect(() => {
+    saveSession(STORAGE_KEYS.hiddenScoutIds, [...hiddenScoutIds]);
+  }, [hiddenScoutIds]);
 
   // --- Toggle subtask ---
   const handleToggleSubtask = useCallback((nodeId: string, index: number) => {
@@ -312,6 +335,12 @@ export function WorkspaceView({
         recentlyAdded={recentlyAdded}
         scoutConversations={scoutConversations}
         onScoutConversationsChange={setScoutConversations}
+        scoutNodes={scoutNodes}
+        onScoutNodesChange={setScoutNodes}
+        scoutEdges={scoutEdges}
+        onScoutEdgesChange={setScoutEdges}
+        hiddenScoutIds={hiddenScoutIds}
+        onHiddenScoutIdsChange={setHiddenScoutIds}
       />
 
       {/* Task Board */}

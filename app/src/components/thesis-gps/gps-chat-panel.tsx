@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import type { GpsProposal, Recommendation, ContextSource, ScoutMessage } from "@/types/gps";
 import { CONTEXT_SOURCE_META } from "@/types/gps";
 import { Mic, ArrowUp, Square } from "lucide-react";
-import type { GpsProposal, Recommendation } from "@/types/gps";
 import { RecommendationCard } from "./recommendation-card";
 
 interface ChatMessage {
