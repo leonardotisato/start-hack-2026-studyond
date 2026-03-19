@@ -12,11 +12,11 @@ export default async function PlannerPage() {
 
   return (
     <main className="container mx-auto max-w-7xl py-6 px-4">
-      <h1 className="text-3xl font-bold mb-1">Thesis Workspace</h1>
-      <p className="text-muted-foreground mb-6">
-        {student?.firstName} {student?.lastName} &mdash; {activeProject.title}
-      </p>
-      <WorkspaceView projectId={activeProject.id} />
+      <WorkspaceView
+        projectId={activeProject.id}
+        studentName={student ? `${student.firstName} ${student.lastName}` : undefined}
+        projectTitle={activeProject.title}
+      />
     </main>
   );
 }
