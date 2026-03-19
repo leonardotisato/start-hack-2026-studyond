@@ -206,3 +206,41 @@ export function getNodeProgress(
   const done = (completedSubtasks[node.id] ?? []).length;
   return { done, total, fraction: total > 0 ? done / total : 0 };
 }
+
+/**
+ * Topological sort of nodes based on edges (longest-path order).
+ * Nodes at the same depth are kept in array order.
+ */
+export function topologicalSortNodes(
+  nodes: GpsNode[],
+  edges: GpsEdge[]
+): GpsNode[] {
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const successors = new Map<string, string[]>();
+  const predCount = new Map<string, number>();
+
+  for (const n of nodes) {
+    successors.set(n.id, []);
+    predCount.set(n.id, 0);
+  }
+  for (const e of edges) {
+    if (nodeIds.has(e.source) && nodeIds.has(e.target)) {
+      successors.get(e.source)!.push(e.target);
+      predCount.set(e.target, (predCount.get(e.target) ?? 0) + 1);
+    }
+  }
+
+  const depth = new Map<string, number>();
+  function visit(id: string, d: number) {
+    if ((depth.get(id) ?? -1) >= d) return;
+    depth.set(id, d);
+    for (const succ of successors.get(id) ?? []) {
+      visit(succ, d + 1);
+    }
+  }
+  for (const n of nodes) {
+    if ((predCount.get(n.id) ?? 0) === 0) visit(n.id, 0);
+  }
+
+  return [...nodes].sort((a, b) => (depth.get(a.id) ?? 0) - (depth.get(b.id) ?? 0));
+}

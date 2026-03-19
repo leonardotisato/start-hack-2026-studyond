@@ -33,12 +33,13 @@ import {
 interface ThesisGpsViewProps {
   projectId: string;
   graph: GpsGraph;
-  onGraphChange: (g: GpsGraph) => void;
+  onGraphChange: (g: GpsGraph, addedNodeIds?: string[]) => void;
   completedSubtasks: Record<string, number[]>;
   onToggleSubtask: (nodeId: string, index: number) => void;
   onChooseBranch: (chosenNodeId: string) => void;
   messages: ChatMessage[];
   onMessagesChange: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+  recentlyAdded: Set<string>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -50,13 +51,13 @@ function toFlowNodes(
   positions: Map<string, { x: number; y: number }>,
   completedSubtasks: Record<string, number[]>,
   graph: GpsGraph,
+  recentlyAdded: Set<string>,
   proposal?: GpsProposal | null
 ): Node[] {
   const addedIds = new Set(proposal?.addNodes.map((n) => n.id) ?? []);
   const removedIds = new Set(proposal?.removeNodeIds ?? []);
   const updatedIds = new Set(proposal?.updateNodes.map((u) => u.id) ?? []);
 
-  // Merge proposal addNodes for preview
   const allComputed = [...computedNodes];
   if (proposal) {
     for (const n of proposal.addNodes) {
@@ -66,7 +67,6 @@ function toFlowNodes(
     }
   }
 
-  // Recompute positions if we added nodes
   const pos = proposal?.addNodes.length
     ? layoutGraph(
         [...graph.nodes, ...proposal.addNodes],
@@ -94,6 +94,7 @@ function toFlowNodes(
         isProposalAdd: addedIds.has(node.id),
         isProposalRemove: removedIds.has(node.id),
         isProposalUpdate: updatedIds.has(node.id),
+        isRecentlyAdded: recentlyAdded.has(node.id),
       } satisfies GpsNodeData,
     };
   });
@@ -185,12 +186,14 @@ export function ThesisGpsView({
   onChooseBranch,
   messages,
   onMessagesChange,
+  recentlyAdded,
 }: ThesisGpsViewProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingProposal, setPendingProposal] = useState<GpsProposal | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   // Compute states and layout
   const computedNodes = useMemo(
@@ -206,10 +209,10 @@ export function ThesisGpsView({
   // Sync ReactFlow state when graph or subtasks change
   useEffect(() => {
     if (!pendingProposal) {
-      setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph));
+      setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded));
       setEdges(toFlowEdges(graph.edges, computedNodes));
     }
-  }, [computedNodes, positions, completedSubtasks, graph, setNodes, setEdges, pendingProposal]);
+  }, [computedNodes, positions, completedSubtasks, graph, recentlyAdded, setNodes, setEdges, pendingProposal]);
 
   // Selected node with computed state
   const selectedNode = useMemo(() => {
@@ -234,6 +237,12 @@ export function ThesisGpsView({
     onChooseBranch(selectedNodeId);
     setSelectedNodeId(null);
   }, [selectedNodeId, onChooseBranch]);
+
+  // --- Show toast then auto-hide ---
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 4000);
+  }
 
   // --- Chat with agent ---
   async function handleSendMessage(userMessage: string) {
@@ -269,8 +278,7 @@ export function ThesisGpsView({
 
       if (hasChanges) {
         setPendingProposal(proposal);
-        // Show preview with proposal diff
-        setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, proposal));
+        setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded, proposal));
         setEdges(toFlowEdges(graph.edges, computedNodes, proposal));
       }
     } catch {
@@ -287,8 +295,34 @@ export function ThesisGpsView({
   function handleAcceptProposal() {
     if (!pendingProposal) return;
     const newGraph = applyProposalToGraph(graph, pendingProposal);
-    onGraphChange(newGraph);
+
+    // Collect what changed for the toast
+    const parts: string[] = [];
+    if (pendingProposal.addNodes.length > 0) {
+      const names = pendingProposal.addNodes.map((n) => n.label).join(", ");
+      parts.push(`Added: ${names}`);
+    }
+    if (pendingProposal.updateNodes.length > 0) {
+      const names = pendingProposal.updateNodes
+        .map((u) => graph.nodes.find((n) => n.id === u.id)?.label ?? u.id)
+        .join(", ");
+      parts.push(`Updated: ${names}`);
+    }
+    if (pendingProposal.removeNodeIds.length > 0) {
+      const names = pendingProposal.removeNodeIds
+        .map((id) => graph.nodes.find((n) => n.id === id)?.label ?? id)
+        .join(", ");
+      parts.push(`Removed: ${names}`);
+    }
+
+    const addedIds = pendingProposal.addNodes.map((n) => n.id);
+    onGraphChange(newGraph, addedIds);
     setPendingProposal(null);
+
+    if (parts.length > 0) {
+      showToast(parts.join(" · "));
+    }
+
     onMessagesChange((prev) => [
       ...prev,
       { role: "agent", content: "Changes applied to your graph." },
@@ -297,8 +331,7 @@ export function ThesisGpsView({
 
   function handleRejectProposal() {
     setPendingProposal(null);
-    // Reset flow to current graph
-    setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph));
+    setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded));
     setEdges(toFlowEdges(graph.edges, computedNodes));
     onMessagesChange((prev) => [
       ...prev,
@@ -335,6 +368,15 @@ export function ThesisGpsView({
             isBranch={isBranchNode(graph, selectedNode.id)}
             onChooseBranch={handleChooseBranch}
           />
+        )}
+
+        {/* Toast notification */}
+        {toast && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="bg-violet-600 text-white px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium max-w-md">
+              {toast}
+            </div>
+          </div>
         )}
       </div>
 

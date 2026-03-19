@@ -45,7 +45,7 @@ export function TaskBoard({ tasks, onToggleSubtask }: TaskBoardProps) {
                   {colTasks.length}
                 </span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[360px] overflow-y-auto">
                 {colTasks.map((task) => {
                   const isLocked = task.status === "todo";
                   const isDone = task.status === "done";

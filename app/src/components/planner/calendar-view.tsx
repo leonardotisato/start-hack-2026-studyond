@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -45,50 +45,61 @@ export function CalendarView({
   onEventsChange,
   graphEventIds = new Set(),
 }: CalendarViewProps) {
-  const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
+  const [year, setYear] = useState<number | null>(null);
+  const [month, setMonth] = useState<number | null>(null);
+
+  // Initialize on client only to avoid hydration mismatch from Date
+  useEffect(() => {
+    const now = new Date();
+    setYear(now.getFullYear());
+    setMonth(now.getMonth());
+  }, []);
 
   const [addDialogDate, setAddDialogDate] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
   const [newType, setNewType] = useState<EventType>("meeting");
   const [selectedEvent, setSelectedEvent] = useState<WorkspaceEvent | null>(null);
 
+  // While waiting for client mount, show nothing
+  if (year === null || month === null) {
+    return <div className="min-h-[400px]" />;
+  }
+
   const monthLabel = new Date(year, month).toLocaleDateString("en-CH", {
     month: "long",
     year: "numeric",
   });
 
-  const days = useMemo(() => {
+  const days = (() => {
     const total = getDaysInMonth(year, month);
     const firstDay = getFirstDayOfMonth(year, month);
     const cells: (number | null)[] = [];
     for (let i = 0; i < firstDay; i++) cells.push(null);
     for (let d = 1; d <= total; d++) cells.push(d);
     return cells;
-  }, [year, month]);
+  })();
 
   function eventsForDay(day: number): WorkspaceEvent[] {
-    const dateStr = formatDateStr(year, month, day);
+    const dateStr = formatDateStr(year!, month!, day);
     return events.filter((e) => e.date === dateStr);
   }
 
   function prevMonth() {
     if (month === 0) {
       setMonth(11);
-      setYear(year - 1);
-    } else setMonth(month - 1);
+      setYear((year ?? 2026) - 1);
+    } else setMonth((month ?? 1) - 1);
   }
 
   function nextMonth() {
     if (month === 11) {
       setMonth(0);
-      setYear(year + 1);
-    } else setMonth(month + 1);
+      setYear((year ?? 2026) + 1);
+    } else setMonth((month ?? 0) + 1);
   }
 
   function handleDayClick(day: number) {
-    const dateStr = formatDateStr(year, month, day);
+    const dateStr = formatDateStr(year!, month!, day);
     setAddDialogDate(dateStr);
     setNewLabel("");
     setNewType("meeting");
@@ -112,6 +123,7 @@ export function CalendarView({
     setSelectedEvent(null);
   }
 
+  const today = new Date();
   const todayStr = formatDateStr(today.getFullYear(), today.getMonth(), today.getDate());
 
   return (

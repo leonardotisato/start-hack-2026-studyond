@@ -15,6 +15,7 @@ export interface GpsNodeData {
   isProposalAdd?: boolean;
   isProposalRemove?: boolean;
   isProposalUpdate?: boolean;
+  isRecentlyAdded?: boolean;
   [key: string]: unknown;
 }
 
@@ -68,6 +69,10 @@ export function GpsNodeComponent({ data }: NodeProps) {
     proposalOutline = "outline outline-2 outline-amber-500 outline-dashed";
   }
 
+  const recentHighlight = d.isRecentlyAdded
+    ? "ring-2 ring-violet-500 ring-offset-2 bg-violet-50 shadow-lg shadow-violet-200"
+    : "";
+
   return (
     <div
       className={`
@@ -75,7 +80,7 @@ export function GpsNodeComponent({ data }: NodeProps) {
         transition-all duration-200
         ${isLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:scale-105 hover:shadow-lg"}
         ${style.bg} ${style.border}
-        ${proposalOutline} ${proposalOpacity}
+        ${proposalOutline} ${proposalOpacity} ${recentHighlight}
       `}
     >
       <Handle type="target" position={Position.Left} className="!bg-gray-400 !w-2 !h-2" />

@@ -12,6 +12,7 @@ import { DEFAULT_GRAPH, DEFAULT_COMPLETED_SUBTASKS } from "@/lib/gps-defaults";
 import {
   computeNodeStates,
   chooseBranch,
+  topologicalSortNodes,
 } from "@/lib/gps-graph-utils";
 
 /* ------------------------------------------------------------------ */
@@ -32,31 +33,6 @@ export interface WorkspaceEvent {
   date: string; // YYYY-MM-DD
   label: string;
   type: "milestone" | "meeting" | "deadline";
-}
-
-/* ------------------------------------------------------------------ */
-/*  localStorage helpers                                               */
-/* ------------------------------------------------------------------ */
-
-const PREFIX = "studyond-ws-";
-
-function load<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const raw = localStorage.getItem(PREFIX + key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function save<T>(key: string, value: T): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(PREFIX + key, JSON.stringify(value));
-  } catch {
-    /* quota exceeded – ignore */
-  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -125,36 +101,22 @@ interface WorkspaceViewProps {
 }
 
 export function WorkspaceView({ projectId }: WorkspaceViewProps) {
-  const [loaded, setLoaded] = useState(false);
   const [graph, setGraph] = useState<GpsGraph>(DEFAULT_GRAPH);
   const [completedSubtasks, setCompletedSubtasks] = useState<Record<string, number[]>>(
     DEFAULT_COMPLETED_SUBTASKS
   );
   const [manualEvents, setManualEvents] = useState<WorkspaceEvent[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
 
-  // --- Load from localStorage on mount ---
+  // --- Always reset to defaults on mount (fresh start every time) ---
   useEffect(() => {
-    setGraph(load("graph2", DEFAULT_GRAPH));
-    setCompletedSubtasks(load("subtasks2", DEFAULT_COMPLETED_SUBTASKS));
-    setManualEvents(load("manualEvents", []));
-    setMessages(load("messages2", []));
-    setLoaded(true);
+    setGraph(DEFAULT_GRAPH);
+    setCompletedSubtasks(DEFAULT_COMPLETED_SUBTASKS);
+    setManualEvents([]);
+    setMessages([]);
+    setRecentlyAdded(new Set());
   }, []);
-
-  // --- Persist state ---
-  useEffect(() => {
-    if (loaded) save("graph2", graph);
-  }, [graph, loaded]);
-  useEffect(() => {
-    if (loaded) save("subtasks2", completedSubtasks);
-  }, [completedSubtasks, loaded]);
-  useEffect(() => {
-    if (loaded) save("manualEvents", manualEvents);
-  }, [manualEvents, loaded]);
-  useEffect(() => {
-    if (loaded) save("messages2", messages);
-  }, [messages, loaded]);
 
   // --- Toggle subtask ---
   const handleToggleSubtask = useCallback((nodeId: string, index: number) => {
@@ -168,12 +130,19 @@ export function WorkspaceView({ projectId }: WorkspaceViewProps) {
   }, []);
 
   // --- Choose branch ---
-  const handleChooseBranch = useCallback(
-    (chosenNodeId: string) => {
-      setGraph((prev) => chooseBranch(prev, chosenNodeId));
-    },
-    []
-  );
+  const handleChooseBranch = useCallback((chosenNodeId: string) => {
+    setGraph((prev) => chooseBranch(prev, chosenNodeId));
+  }, []);
+
+  // --- Graph change (from agent proposals) ---
+  const handleGraphChange = useCallback((newGraph: GpsGraph, addedNodeIds?: string[]) => {
+    setGraph(newGraph);
+    if (addedNodeIds && addedNodeIds.length > 0) {
+      setRecentlyAdded(new Set(addedNodeIds));
+      // Clear highlight after 5 seconds
+      setTimeout(() => setRecentlyAdded(new Set()), 5000);
+    }
+  }, []);
 
   // --- Derived data ---
   const graphTasks = useMemo(
@@ -196,44 +165,43 @@ export function WorkspaceView({ projectId }: WorkspaceViewProps) {
     [graph, completedSubtasks]
   );
 
-  if (!loaded) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        Loading workspace...
-      </div>
-    );
-  }
+  // Milestones sorted in topological (graph) order
+  const sortedNodes = useMemo(
+    () => topologicalSortNodes(computedNodes, graph.edges),
+    [computedNodes, graph.edges]
+  );
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue={0}>
+      <Tabs defaultValue="gps">
         <TabsList>
-          <TabsTrigger value={0}>GPS Graph</TabsTrigger>
-          <TabsTrigger value={1}>Task Board</TabsTrigger>
-          <TabsTrigger value={2}>Calendar</TabsTrigger>
+          <TabsTrigger value="gps">GPS Graph</TabsTrigger>
+          <TabsTrigger value="tasks">Task Board</TabsTrigger>
+          <TabsTrigger value="calendar">Calendar</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={0} className="mt-4">
+        <TabsContent value="gps" className="mt-4">
           <ThesisGpsView
             projectId={projectId}
             graph={graph}
-            onGraphChange={setGraph}
+            onGraphChange={handleGraphChange}
             completedSubtasks={completedSubtasks}
             onToggleSubtask={handleToggleSubtask}
             onChooseBranch={handleChooseBranch}
             messages={messages}
             onMessagesChange={setMessages}
+            recentlyAdded={recentlyAdded}
           />
         </TabsContent>
 
-        <TabsContent value={1} className="mt-4">
+        <TabsContent value="tasks" className="mt-4">
           <TaskBoard
             tasks={graphTasks}
             onToggleSubtask={handleToggleSubtask}
           />
         </TabsContent>
 
-        <TabsContent value={2} className="mt-4">
+        <TabsContent value="calendar" className="mt-4">
           <CalendarView
             events={allEvents}
             onEventsChange={setManualEvents}
@@ -243,8 +211,10 @@ export function WorkspaceView({ projectId }: WorkspaceViewProps) {
       </Tabs>
 
       <MilestoneTracker
-        nodes={computedNodes}
+        nodes={sortedNodes}
         completedSubtasks={completedSubtasks}
+        recentlyAdded={recentlyAdded}
+        manualEvents={manualEvents}
       />
     </div>
   );
