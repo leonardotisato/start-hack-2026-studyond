@@ -295,7 +295,7 @@ function ThesisGpsViewInner({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentlyAdded]);
 
-  // On first load, zoom in on the active node
+  // On first load, zoom in on the active (current) node
   useEffect(() => {
     if (hasFitView || nodes.length === 0) return;
     const activeIds = computedNodes
@@ -305,9 +305,9 @@ function ThesisGpsViewInner({
       ? nodes.filter((n) => activeIds.includes(n.id))
       : nodes;
     setTimeout(() => {
-      fitView({ nodes: focusNodes, padding: 0.25, maxZoom: 1.2, duration: 400 });
+      fitView({ nodes: focusNodes, padding: 0.5, maxZoom: 1.0, duration: 600 });
       setHasFitView(true);
-    }, 50);
+    }, 80);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes.length > 0]);
 
@@ -853,7 +853,7 @@ function ThesisGpsViewInner({
           <Controls />
         </ReactFlow>
         ) : (
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto px-4 pb-4 pt-12">
             <TaskBoard tasks={tasks} onToggleSubtask={onToggleSubtask} />
           </div>
         )}
