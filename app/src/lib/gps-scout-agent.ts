@@ -1,6 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { GpsGraph, GpsNode, GpsProposal, ScoutMessage, ScoutSuggestionSummary } from "@/types/gps";
+import type {
+  GpsGraph,
+  GpsNode,
+  GpsProposal,
+  ScoutMessage,
+  ScoutSuggestionSummary,
+} from "@/types/gps";
 import type { ThesisProject, Student, Topic, Supervisor } from "@/types";
+import { SEARCH_TOOLS, type ToolSession } from "@/lib/mcp-tools";
+import { runWithTools, type OnToolCall } from "@/lib/tool-loop";
 
 const client = new Anthropic();
 
@@ -18,11 +26,11 @@ ${subtaskStatus ? `Subtasks:\n${subtaskStatus}` : "No subtasks"}
 
 You MUST respond with ONLY a JSON object. You can do three things independently — decide for EACH:
 
-1. SEARCH THE DATABASE — set "recommend" to find supervisors, experts, companies, topics, universities, or programs
+1. SEARCH THE DATABASE — use the search_database tool to find supervisors, experts, companies, topics, universities, or programs
 2. MODIFY THE GRAPH — propose changes using addNodes/updateNodes/removeNodeIds/addEdges/removeEdgeIds/completeSubtasks
 3. ANSWER — give specific, contextual advice about this milestone
 
-JSON response format:
+JSON response format (your FINAL response after any tool calls):
 {
   "addNodes": [],
   "updateNodes": [],
@@ -31,24 +39,21 @@ JSON response format:
   "removeEdgeIds": [],
   "completeSubtasks": [],
   "message": "Your reply.",
-  "recommend": null,
   "dismissSuggestionIds": []
 }
 
 ═══════════════════════════════════════════
-WHEN TO SEARCH (set "recommend")
+WHEN TO SEARCH (use search_database tool)
 ═══════════════════════════════════════════
 
-Set "recommend" when the student asks about ANY entities — supervisors, experts, companies, topics, universities, or programs:
-- "Find me a supervisor for X" → { "type": "supervisor", "reason": "...", "keywords": [...] }
-- "Any companies working on X?" → { "type": "company", "reason": "...", "keywords": [...] }
-- "Suggest thesis topics in X" → { "type": "topic", "reason": "...", "keywords": [...] }
-- Broad requests → { "type": "all", "reason": "...", "keywords": [...] }
+Use the search_database tool when the student asks about ANY entities — supervisors, experts, companies, topics, universities, or programs:
+- "Find me a supervisor for X" → call search_database with entity_types: ["supervisor"]
+- "Any companies working on X?" → call search_database with entity_types: ["company"]
+- "Suggest thesis topics in X" → call search_database with entity_types: ["topic"]
+- Broad requests → call search_database without entity_types to search all
 - IMPORTANT: Even if the request is unrelated to the focus node "${node.label}", ALWAYS search when the student asks for entities.
 
-Types: "supervisor" | "expert" | "company" | "topic" | "university" | "program" | "all"
-The "reason" field must be a COMPLETE, self-contained description of what the student is looking for. Write it as if someone with NO conversation context should understand the request.
-Keywords must be specific domain terms (e.g. ["natural language processing", "transformer models"]).
+After getting search results, you MUST call select_recommendations with the top 2-3 entities that CLOSELY match the student's request. Only pick entities that are genuinely relevant — if none truly fit, pass an empty array. Then mention your picks in your message with names and details.
 
 ═══════════════════════════════════════════
 WHEN TO MODIFY THE GRAPH
@@ -127,7 +132,8 @@ function buildUserPrompt(ctx: ScoutAgentContext): string {
 
   parts.push("\n## Project");
   parts.push(`- Title: ${ctx.project.title}`);
-  if (ctx.project.description) parts.push(`- Description: ${ctx.project.description}`);
+  if (ctx.project.description)
+    parts.push(`- Description: ${ctx.project.description}`);
 
   if (ctx.student) {
     parts.push(`\n## Student`);
@@ -144,7 +150,9 @@ function buildUserPrompt(ctx: ScoutAgentContext): string {
 
   if (ctx.supervisor) {
     parts.push(`\n## Supervisor`);
-    parts.push(`- Name: ${ctx.supervisor.firstName} ${ctx.supervisor.lastName}`);
+    parts.push(
+      `- Name: ${ctx.supervisor.firstName} ${ctx.supervisor.lastName}`,
+    );
     parts.push(`- Research: ${ctx.supervisor.researchInterests.join(", ")}`);
   }
 
@@ -166,15 +174,20 @@ interface ScoutProposal extends GpsProposal {
 }
 
 function parseProposal(text: string): ScoutProposal {
-  const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+  const cleaned = text
+    .replace(/```json\s*/g, "")
+    .replace(/```\s*/g, "")
+    .trim();
   const parsed = JSON.parse(cleaned);
 
   return {
     addNodes: parsed.addNodes ?? [],
-    updateNodes: (parsed.updateNodes ?? []).map((u: { id: string; patch?: object }) => ({
-      id: u.id,
-      patch: u.patch ?? {},
-    })),
+    updateNodes: (parsed.updateNodes ?? []).map(
+      (u: { id: string; patch?: object }) => ({
+        id: u.id,
+        patch: u.patch ?? {},
+      }),
+    ),
     removeNodeIds: parsed.removeNodeIds ?? [],
     addEdges: parsed.addEdges ?? [],
     removeEdgeIds: parsed.removeEdgeIds ?? [],
@@ -188,7 +201,11 @@ function parseProposal(text: string): ScoutProposal {
 
 export type { ScoutProposal };
 
-export async function runScoutAgent(ctx: ScoutAgentContext): Promise<ScoutProposal> {
+export async function runScoutAgent(
+  ctx: ScoutAgentContext,
+  toolSession: ToolSession,
+  onToolCall?: OnToolCall,
+): Promise<ScoutProposal> {
   const nodeCompletedIndices = ctx.completedSubtasks[ctx.node.id] ?? [];
   const systemPrompt = buildSystemPrompt(ctx.node, nodeCompletedIndices);
   const contextPrompt = buildUserPrompt(ctx);
@@ -235,17 +252,16 @@ export async function runScoutAgent(ctx: ScoutAgentContext): Promise<ScoutPropos
     messages.push({ role: "user", content: contextPrompt });
   }
 
-  const response = await client.messages.create({
+  const text = await runWithTools({
+    client,
     model: "claude-sonnet-4-20250514",
-    max_tokens: 2048,
+    maxTokens: 2048,
     system: systemPrompt,
     messages,
+    tools: SEARCH_TOOLS,
+    toolExecutor: toolSession.executeToolCall,
+    onToolCall,
   });
-
-  const text = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("");
 
   return parseProposal(text);
 }
