@@ -193,7 +193,7 @@ export function ProjectWidget({ project, topic, company }: ProjectWidgetProps) {
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
             </AspectRatio>
             <span
-              className={`absolute top-4 right-4 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium backdrop-blur-sm ${style.bg} ${style.text}`}
+              className={`absolute bottom-4 left-4 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium backdrop-blur-sm ${style.bg} ${style.text}`}
             >
               {style.label}
             </span>
@@ -202,18 +202,16 @@ export function ProjectWidget({ project, topic, company }: ProjectWidgetProps) {
 
         <div className="p-6 space-y-5">
           <DialogHeader>
-            <div className="flex items-start justify-between gap-3">
-              <DialogTitle className="text-xl font-semibold leading-snug pr-8">
-                {project.title}
-              </DialogTitle>
-              {!project.imageUrl && (
-                <span
-                  className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.text}`}
-                >
-                  {style.label}
-                </span>
-              )}
-            </div>
+            <DialogTitle className="text-xl font-semibold leading-snug pr-10">
+              {project.title}
+            </DialogTitle>
+            {!project.imageUrl && (
+              <span
+                className={`w-fit inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.text}`}
+              >
+                {style.label}
+              </span>
+            )}
           </DialogHeader>
 
           {/* Description */}
