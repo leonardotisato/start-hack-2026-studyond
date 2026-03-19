@@ -12,6 +12,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getAvatarUrl } from "@/lib/avatar";
 import type { MutualConnection } from "@/lib/mock-connections";
 import type { Expert, Company, Field } from "@/types";
 
@@ -48,13 +50,25 @@ export function ExpertCard({
       >
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-2">
-            <div>
-              <CardTitle className="text-base">
-                {expert.firstName} {expert.lastName}
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {expert.title} &middot; {company?.name ?? "Independent"}
-              </p>
+            <div className="flex items-center gap-3 min-w-0">
+              <Avatar className="shrink-0">
+                <AvatarImage
+                  src={getAvatarUrl(expert.firstName, expert.lastName)}
+                  alt={`${expert.firstName} ${expert.lastName}`}
+                />
+                <AvatarFallback>
+                  {expert.firstName[0]}
+                  {expert.lastName[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <CardTitle className="text-base">
+                  {expert.firstName} {expert.lastName}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground truncate">
+                  {expert.title} &middot; {company?.name ?? "Independent"}
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               {expert.offerInterviews && (
@@ -129,12 +143,26 @@ export function ExpertCard({
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl">
-              {expert.firstName} {expert.lastName}
-            </DialogTitle>
-            <DialogDescription>
-              {expert.title} &middot; {company?.name ?? "Independent"}
-            </DialogDescription>
+            <div className="flex items-center gap-4">
+              <Avatar size="lg" className="shrink-0">
+                <AvatarImage
+                  src={getAvatarUrl(expert.firstName, expert.lastName)}
+                  alt={`${expert.firstName} ${expert.lastName}`}
+                />
+                <AvatarFallback>
+                  {expert.firstName[0]}
+                  {expert.lastName[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <DialogTitle className="text-xl">
+                  {expert.firstName} {expert.lastName}
+                </DialogTitle>
+                <DialogDescription>
+                  {expert.title} &middot; {company?.name ?? "Independent"}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4">
