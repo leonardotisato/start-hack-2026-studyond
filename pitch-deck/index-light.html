@@ -11,19 +11,19 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   :root {
-    --bg: #09090b;
-    --bg2: #0f0f13;
-    --bg3: #141419;
-    --white: #ffffff;
-    --muted: rgba(255,255,255,0.45);
-    --dim: rgba(255,255,255,0.22);
-    --border: rgba(255,255,255,0.1);
+    --bg: #ffffff;
+    --bg2: #f5f5f7;
+    --bg3: #ebebef;
+    --white: #09090b;
+    --muted: rgba(0,0,0,0.50);
+    --dim: rgba(0,0,0,0.30);
+    --border: rgba(0,0,0,0.09);
     --violet: #7c3aed;
-    --violet-light: #a78bfa;
+    --violet-light: #7c3aed;
     --blue: #3b82f6;
-    --blue-light: #60a5fa;
+    --blue-light: #2563eb;
     --gradient: linear-gradient(135deg, #7c3aed, #3b82f6);
-    --gradient-text: linear-gradient(135deg, #a78bfa, #60a5fa);
+    --gradient-text: linear-gradient(135deg, #7c3aed, #3b82f6);
     --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     --font-tech: 'Space Grotesk', 'DM Sans', 'Inter', sans-serif;
   }
@@ -52,26 +52,27 @@
     transform: translateX(-50%);
     display: flex; align-items: center; gap: 14px;
     z-index: 1000;
-    background: rgba(0,0,0,0.75); backdrop-filter: blur(12px);
+    background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
     border-radius: 40px; padding: 10px 20px;
     border: 1px solid var(--border);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
   }
   .nav button {
-    background: none; border: none; color: white;
+    background: none; border: none; color: #0a0a0a;
     font-size: 18px; cursor: pointer;
     padding: 4px 10px; border-radius: 6px; transition: background 0.15s;
   }
-  .nav button:hover { background: rgba(255,255,255,0.1); }
+  .nav button:hover { background: rgba(0,0,0,0.06); }
   .nav button:disabled { opacity: 0.25; cursor: default; }
   .nav-dots { display: flex; gap: 5px; align-items: center; }
   .dot {
     width: 6px; height: 6px; border-radius: 50%;
-    background: rgba(255,255,255,0.25); transition: all 0.2s; cursor: pointer;
+    background: rgba(0,0,0,0.18); transition: all 0.2s; cursor: pointer;
   }
-  .dot.active { background: white; width: 18px; border-radius: 3px; }
-  .dot.appendix { background: rgba(255,255,255,0.12); }
-  .dot.appendix.active { background: rgba(255,255,255,0.45); width: 14px; }
-  .nav-sep { width: 1px; height: 14px; background: rgba(255,255,255,0.15); margin: 0 3px; align-self: center; }
+  .dot.active { background: #0a0a0a; width: 18px; border-radius: 3px; }
+  .dot.appendix { background: rgba(0,0,0,0.10); }
+  .dot.appendix.active { background: rgba(0,0,0,0.35); width: 14px; }
+  .nav-sep { width: 1px; height: 14px; background: rgba(0,0,0,0.12); margin: 0 3px; align-self: center; }
 
   .slide-num {
     position: absolute; top: 24px; right: 32px;
@@ -93,7 +94,7 @@
   }
   .s1-glow {
     position: absolute; width: 700px; height: 700px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 68%);
+    background: radial-gradient(circle, rgba(124,58,237,0.06) 0%, transparent 68%);
     top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none;
   }
   .s1-badge {
@@ -102,7 +103,6 @@
     border: 1px solid var(--border); padding: 7px 20px; border-radius: 40px;
     position: relative; z-index: 1;
   }
-  /* thesisGPS: hero title — gradient, large */
   .s1-thesisgps-name {
     font-family: var(--font-tech);
     font-size: 88px; font-weight: 700; letter-spacing: -0.04em; line-height: 1;
@@ -112,12 +112,11 @@
   }
   .s1-compass-icon {
     width: 80px; height: 80px; border-radius: 20px; flex-shrink: 0;
-    background: linear-gradient(135deg, rgba(167,139,250,0.14), rgba(96,165,250,0.14));
-    border: 1px solid rgba(167,139,250,0.30);
+    background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(59,130,246,0.08));
+    border: 1px solid rgba(124,58,237,0.20);
     display: flex; align-items: center; justify-content: center;
     font-size: 44px; line-height: 1;
   }
-  /* "powered by Studyond" row below */
   .s1-thesisgps-block {
     position: relative; z-index: 1;
     display: flex; align-items: center; justify-content: center; gap: 12px;
@@ -125,20 +124,19 @@
   }
   .s1-thesisgps-label {
     font-family: var(--font-ui);
-    font-size: 14px; color: rgba(255,255,255,0.32); letter-spacing: 0.06em; font-weight: 400;
+    font-size: 14px; color: rgba(0,0,0,0.32); letter-spacing: 0.06em; font-weight: 400;
   }
-  .s1-thesisgps-sep { width: 1px; height: 16px; background: rgba(255,255,255,0.12); }
-  /* Studyond: smaller, white, below */
+  .s1-thesisgps-sep { width: 1px; height: 16px; background: rgba(0,0,0,0.12); }
   .s1-studyond {
     font-family: var(--font-ui);
     font-size: 22px; font-weight: 500;
-    color: rgba(255,255,255,0.75); letter-spacing: 0.01em; line-height: 1;
+    color: rgba(0,0,0,0.65); letter-spacing: 0.01em; line-height: 1;
     display: inline; position: relative; z-index: 1;
   }
   .s1-tagline {
     font-family: var(--font-ui);
     font-size: 17px; font-weight: 400;
-    color: rgba(255,255,255,0.38); letter-spacing: 0.01em;
+    color: rgba(0,0,0,0.38); letter-spacing: 0.01em;
     max-width: 520px; line-height: 1.65;
     position: relative; z-index: 1;
   }
@@ -156,10 +154,10 @@
     color: var(--violet-light); opacity: 0.75;
   }
   .dark-heading {
-    font-size: 50px; font-weight: 800; color: white;
+    font-size: 50px; font-weight: 800; color: #0a0a0a;
     text-align: center; line-height: 1.18; max-width: 820px;
   }
-  .dark-heading .dim-text { color: rgba(255,255,255,0.52); }
+  .dark-heading .dim-text { color: rgba(0,0,0,0.35); }
   .prob-cards { display: flex; gap: 24px; }
   .prob-card {
     flex: 1; max-width: 320px; padding: 36px 30px;
@@ -171,16 +169,16 @@
   .prob-card.c2::before { background: linear-gradient(90deg,#f59e0b,#eab308); }
   .prob-card.c3::before { background: linear-gradient(90deg,#6366f1,#8b5cf6); }
   .prob-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
-  .prob-card.c1 .prob-icon { background: rgba(239,68,68,0.1); }
-  .prob-card.c2 .prob-icon { background: rgba(245,158,11,0.1); }
-  .prob-card.c3 .prob-icon { background: rgba(99,102,241,0.1); }
+  .prob-card.c1 .prob-icon { background: rgba(239,68,68,0.08); }
+  .prob-card.c2 .prob-icon { background: rgba(245,158,11,0.08); }
+  .prob-card.c3 .prob-icon { background: rgba(99,102,241,0.08); }
   .prob-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
   .prob-tag { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; width: fit-content; }
-  .prob-card.c1 .prob-tag { background: rgba(239,68,68,0.12); color: #fca5a5; }
-  .prob-card.c2 .prob-tag { background: rgba(245,158,11,0.12); color: #fcd34d; }
-  .prob-card.c3 .prob-tag { background: rgba(99,102,241,0.12); color: #a5b4fc; }
-  .prob-title { font-size: 19px; font-weight: 700; color: #ffffff; margin-bottom: 12px; line-height: 1.3; }
-  .prob-desc { font-size: 14px; color: #dde3ee; line-height: 1.75; }
+  .prob-card.c1 .prob-tag { background: rgba(239,68,68,0.08); color: #dc2626; }
+  .prob-card.c2 .prob-tag { background: rgba(245,158,11,0.08); color: #d97706; }
+  .prob-card.c3 .prob-tag { background: rgba(99,102,241,0.08); color: #6366f1; }
+  .prob-title { font-size: 19px; font-weight: 700; color: #0a0a0a; margin-bottom: 12px; line-height: 1.3; }
+  .prob-desc { font-size: 14px; color: #444c5e; line-height: 1.75; }
 
   /* ══════════════════════════════════════════════════════
      CORE SHELL (slides 3–5)
@@ -193,8 +191,8 @@
   .core-header {
     text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px;
   }
-  .core-title { font-size: 48px; font-weight: 800; color: white; line-height: 1.1; }
-  .core-sub { font-size: 15px; color: rgba(255,255,255,0.46); max-width: 620px; line-height: 1.6; margin-top: 2px; }
+  .core-title { font-size: 48px; font-weight: 800; color: #0a0a0a; line-height: 1.1; }
+  .core-sub { font-size: 15px; color: rgba(0,0,0,0.46); max-width: 620px; line-height: 1.6; margin-top: 2px; }
 
   /* ══════════════════════════════════════════════════════
      SLIDE 3 — REAL SCREENSHOT BROWSER FRAME
@@ -203,22 +201,22 @@
     width: 100%; max-width: 1080px;
     border-radius: 14px; overflow: hidden;
     box-shadow:
-      0 0 0 1px rgba(255,255,255,0.08),
-      0 32px 100px rgba(0,0,0,0.7),
-      0 0 80px rgba(124,58,237,0.08);
+      0 0 0 1px rgba(0,0,0,0.08),
+      0 32px 100px rgba(0,0,0,0.12),
+      0 0 80px rgba(124,58,237,0.05);
   }
   .browser-dark-bar {
-    background: #1a1a1f;
+    background: #e8e8ed;
     height: 36px; display: flex; align-items: center;
     padding: 0 16px; gap: 7px;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(0,0,0,0.07);
   }
   .browser-dark-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
   .browser-dark-url {
     margin-left: 10px; flex: 1; max-width: 320px;
-    background: rgba(255,255,255,0.06); border-radius: 5px;
-    padding: 4px 14px; font-size: 11px; color: rgba(255,255,255,0.35);
-    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(0,0,0,0.05); border-radius: 5px;
+    padding: 4px 14px; font-size: 11px; color: rgba(0,0,0,0.40);
+    border: 1px solid rgba(0,0,0,0.07);
   }
   .browser-dark img { width: 100%; display: block; }
 
@@ -233,8 +231,8 @@
     justify-items: center;
     max-width: 960px;
     width: 100%;
-    background: rgba(255,255,255,0.025);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.02);
+    border: 1px solid rgba(0,0,0,0.07);
     border-radius: 24px;
     padding: 36px 28px;
   }
@@ -243,34 +241,34 @@
     padding: 22px 16px; border-radius: 16px; text-align: center; width: 100%;
     border: 1px solid;
   }
-  .actor.a-student { background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.40); }
-  .actor.a-gps     { background: rgba(96,165,250,0.16);  border-color: rgba(96,165,250,0.55);
-                     box-shadow: 0 0 32px rgba(96,165,250,0.18); }
-  .actor.a-claude  { background: rgba(167,139,250,0.14); border-color: rgba(167,139,250,0.50); }
-  .actor.a-scout   { background: rgba(245,158,11,0.12);  border-color: rgba(245,158,11,0.42); }
-  .actor.a-network { background: rgba(34,197,94,0.12);   border-color: rgba(34,197,94,0.40); }
+  .actor.a-student { background: rgba(124,58,237,0.06);  border-color: rgba(124,58,237,0.25); }
+  .actor.a-gps     { background: rgba(59,130,246,0.08);  border-color: rgba(59,130,246,0.35);
+                     box-shadow: 0 0 32px rgba(59,130,246,0.10); }
+  .actor.a-claude  { background: rgba(124,58,237,0.06);  border-color: rgba(124,58,237,0.28); }
+  .actor.a-scout   { background: rgba(245,158,11,0.07);  border-color: rgba(245,158,11,0.30); }
+  .actor.a-network { background: rgba(34,197,94,0.06);   border-color: rgba(34,197,94,0.28); }
   .actor-emoji { font-size: 30px; margin-bottom: 10px; line-height: 1; }
-  .actor-name  { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 5px; letter-spacing: -0.01em; }
-  .actor-desc  { font-size: 11px; color: rgba(255,255,255,0.55); line-height: 1.5; }
+  .actor-name  { font-size: 14px; font-weight: 700; color: #0a0a0a; margin-bottom: 5px; letter-spacing: -0.01em; }
+  .actor-desc  { font-size: 11px; color: rgba(0,0,0,0.52); line-height: 1.5; }
   /* Horizontal arrows */
   .aflow-arr { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
-  .aflow-arr-lbl { font-size: 9px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; }
-  .aflow-arr-line { width: 100%; height: 2px; background: rgba(255,255,255,0.30); position: relative; }
+  .aflow-arr-lbl { font-size: 9px; color: rgba(0,0,0,0.40); text-transform: uppercase; letter-spacing: 0.08em; }
+  .aflow-arr-line { width: 100%; height: 2px; background: rgba(0,0,0,0.20); position: relative; }
   .aflow-arr-line::after {
     content: ''; position: absolute; right: -2px; top: -5px;
-    border: 5px solid transparent; border-left: 9px solid rgba(255,255,255,0.40);
+    border: 5px solid transparent; border-left: 9px solid rgba(0,0,0,0.28);
   }
   .aflow-arr.bidir .aflow-arr-line::before {
     content: ''; position: absolute; left: -2px; top: -5px;
-    border: 5px solid transparent; border-right: 9px solid rgba(255,255,255,0.40);
+    border: 5px solid transparent; border-right: 9px solid rgba(0,0,0,0.28);
   }
   /* Vertical arrow (GPS → Scout) */
   .aflow-vert { display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; width: 100%; }
-  .aflow-vert-lbl { font-size: 9px; color: rgba(245,158,11,0.90); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
-  .aflow-vert-line { flex: 1; width: 2px; background: rgba(245,158,11,0.45); position: relative; }
+  .aflow-vert-lbl { font-size: 9px; color: rgba(180,120,0,0.90); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
+  .aflow-vert-line { flex: 1; width: 2px; background: rgba(245,158,11,0.40); position: relative; }
   .aflow-vert-line::after {
     content: ''; position: absolute; bottom: -2px; left: -5px;
-    border: 5px solid transparent; border-top: 9px solid rgba(245,158,11,0.60);
+    border: 5px solid transparent; border-top: 9px solid rgba(245,158,11,0.55);
   }
 
   /* ══════════════════════════════════════════════════════
@@ -290,41 +288,39 @@
   .ctx-col-icon { font-size: 46px; line-height: 1; }
   .ctx-col-keyword {
     font-family: var(--font-tech);
-    font-size: 30px; font-weight: 700; letter-spacing: -0.03em; color: white; line-height: 1.1;
+    font-size: 30px; font-weight: 700; letter-spacing: -0.03em; color: #0a0a0a; line-height: 1.1;
   }
   .ctx-col-tag {
     font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
     color: var(--violet-light); opacity: 0.75;
   }
   .ctx-col-line { width: 32px; height: 2px; background: var(--gradient); border-radius: 1px; }
-  .ctx-col-desc { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.65; }
+  .ctx-col-desc { font-size: 13px; color: rgba(0,0,0,0.50); line-height: 1.65; }
 
   /* ══════════════════════════════════════════════════════
      SLIDE 6 — WOW CONCLUSION
   ══════════════════════════════════════════════════════ */
   .s-wow {
-    background: #050508;
+    background: #f8f8fc;
     flex-direction: column; align-items: center; justify-content: center;
     text-align: center; gap: 32px; padding: 80px;
     position: relative; overflow: hidden;
   }
-  /* Deep glow layers */
   .wow-glow1 {
     position: absolute; width: 900px; height: 900px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(124,58,237,0.18) 0%, transparent 58%);
+    background: radial-gradient(circle, rgba(124,58,237,0.07) 0%, transparent 58%);
     top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none;
   }
   .wow-glow2 {
     position: absolute; width: 500px; height: 500px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 60%);
+    background: radial-gradient(circle, rgba(59,130,246,0.05) 0%, transparent 60%);
     bottom: 0; right: 10%; pointer-events: none;
   }
   .wow-glow3 {
     position: absolute; width: 300px; height: 300px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 60%);
+    background: radial-gradient(circle, rgba(124,58,237,0.04) 0%, transparent 60%);
     top: 10%; left: 10%; pointer-events: none;
   }
-  /* thesisGPS glowing nameplate */
   .wow-brand {
     position: relative; z-index: 1;
     display: flex; align-items: center; gap: 14px;
@@ -334,30 +330,26 @@
     font-size: 22px; font-weight: 500; letter-spacing: -0.04em;
     background: var(--gradient-text);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    filter: drop-shadow(0 0 20px rgba(167,139,250,0.5));
   }
-  .wow-brand-sep { width: 1px; height: 18px; background: rgba(255,255,255,0.12); }
-  .wow-brand-label { font-size: 12px; color: rgba(255,255,255,0.28); letter-spacing: 0.06em; }
-  /* Pipeline arrow */
+  .wow-brand-sep { width: 1px; height: 18px; background: rgba(0,0,0,0.12); }
+  .wow-brand-label { font-size: 12px; color: rgba(0,0,0,0.32); letter-spacing: 0.06em; }
   .wow-pipeline { display: flex; align-items: center; gap: 0; position: relative; z-index: 1; margin-top: 4px; }
   .wow-pill { padding: 9px 22px; border-radius: 40px; font-size: 13px; font-weight: 600; border: 1px solid; }
-  .wow-pill.from { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.45); }
+  .wow-pill.from { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.10); color: rgba(0,0,0,0.45); }
   .wow-pill.to { background: var(--gradient); border: none; color: white; }
-  .wow-arrow { font-size: 18px; color: rgba(255,255,255,0.25); padding: 0 14px; }
-  /* Main quote */
+  .wow-arrow { font-size: 18px; color: rgba(0,0,0,0.22); padding: 0 14px; }
   .wow-headline {
-    font-size: 64px; font-weight: 900; color: white;
+    font-size: 64px; font-weight: 900; color: #0a0a0a;
     line-height: 1.06; letter-spacing: -2.5px;
     max-width: 880px; position: relative; z-index: 1;
   }
-  /* Subline */
   .wow-sub {
-    font-size: 18px; color: rgba(255,255,255,0.42); max-width: 580px;
+    font-size: 18px; color: rgba(0,0,0,0.45); max-width: 580px;
     line-height: 1.65; position: relative; z-index: 1;
   }
   .wow-cta {
     display: inline-block; padding: 15px 40px;
-    background: white; color: #0a0a0a;
+    background: #0a0a0a; color: white;
     font-size: 14px; font-weight: 700; border-radius: 40px;
     letter-spacing: 0.03em; position: relative; z-index: 1; margin-top: 8px;
   }
@@ -371,10 +363,10 @@
   }
   .apx-label {
     font-size: 10px; font-weight: 700; letter-spacing: 0.28em; text-transform: uppercase;
-    color: var(--dim); border: 1px solid rgba(255,255,255,0.08);
+    color: var(--dim); border: 1px solid rgba(0,0,0,0.10);
     padding: 6px 18px; border-radius: 40px;
   }
-  .apx-title { font-size: 40px; font-weight: 800; color: rgba(255,255,255,0.5); letter-spacing: -1px; }
+  .apx-title { font-size: 40px; font-weight: 800; color: rgba(0,0,0,0.40); letter-spacing: -1px; }
   .apx-sub { font-size: 15px; color: var(--dim); max-width: 500px; line-height: 1.6; }
 
   /* ══════════════════════════════════════════════════════
@@ -393,36 +385,36 @@
     font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
     padding: 5px 13px; border-radius: 40px; width: fit-content; border: 1px solid;
   }
-  .fb-blue   { background: rgba(59,130,246,0.1);  color: #60a5fa;  border-color: rgba(59,130,246,0.2); }
-  .fb-violet { background: rgba(124,58,237,0.1); color: #a78bfa; border-color: rgba(124,58,237,0.2); }
-  .fb-green  { background: rgba(16,185,129,0.1);  color: #6ee7b7;  border-color: rgba(16,185,129,0.2); }
-  .fb-amber  { background: rgba(245,158,11,0.1);  color: #fcd34d;  border-color: rgba(245,158,11,0.2); }
-  .feat-title { font-size: 40px; font-weight: 800; color: white; line-height: 1.1; }
+  .fb-blue   { background: rgba(59,130,246,0.08);  color: #2563eb;  border-color: rgba(59,130,246,0.20); }
+  .fb-violet { background: rgba(124,58,237,0.08); color: #7c3aed; border-color: rgba(124,58,237,0.20); }
+  .fb-green  { background: rgba(16,185,129,0.08);  color: #059669;  border-color: rgba(16,185,129,0.20); }
+  .fb-amber  { background: rgba(245,158,11,0.08);  color: #d97706;  border-color: rgba(245,158,11,0.20); }
+  .feat-title { font-size: 40px; font-weight: 800; color: #0a0a0a; line-height: 1.1; }
   .feat-desc { font-size: 15px; color: var(--muted); line-height: 1.7; }
   .feat-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
-  .feat-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: rgba(255,255,255,0.78); }
+  .feat-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: rgba(0,0,0,0.72); }
   .feat-check {
     width: 18px; height: 18px; border-radius: 50%;
-    background: rgba(16,185,129,0.12); border: 1.5px solid rgba(16,185,129,0.35);
+    background: rgba(16,185,129,0.08); border: 1.5px solid rgba(16,185,129,0.30);
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; font-size: 10px; color: #6ee7b7; margin-top: 1px;
+    flex-shrink: 0; font-size: 10px; color: #059669; margin-top: 1px;
   }
   .feat-right { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px; background: var(--bg); }
-  .img-frame { border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid var(--border); max-height: 85vh; width: 100%; }
+  .img-frame { border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.12); border: 1px solid var(--border); max-height: 85vh; width: 100%; }
   .img-frame img { width: 100%; display: block; }
 
   .s-overview { background: var(--bg); flex-direction: column; align-items: center; justify-content: center; padding: 48px 80px; gap: 32px; }
-  .browser-frame { width: 100%; max-width: 980px; border-radius: 12px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.5); border: 1px solid var(--border); }
-  .browser-bar { background: #1c1c1e; height: 36px; display: flex; align-items: center; padding: 0 16px; gap: 8px; border-bottom: 1px solid var(--border); }
+  .browser-frame { width: 100%; max-width: 980px; border-radius: 12px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.10); border: 1px solid var(--border); }
+  .browser-bar { background: #e8e8ed; height: 36px; display: flex; align-items: center; padding: 0 16px; gap: 8px; border-bottom: 1px solid var(--border); }
   .bdot { width: 10px; height: 10px; border-radius: 50%; }
-  .burl { margin-left: 12px; background: rgba(255,255,255,0.06); border-radius: 6px; padding: 4px 16px; font-size: 12px; color: var(--muted); flex: 1; max-width: 340px; }
+  .burl { margin-left: 12px; background: rgba(0,0,0,0.05); border-radius: 6px; padding: 4px 16px; font-size: 12px; color: var(--muted); flex: 1; max-width: 340px; }
   .browser-frame img { width: 100%; display: block; }
 
   .s-tech { background: var(--bg); flex-direction: column; align-items: center; justify-content: center; padding: 80px; gap: 52px; }
   .tech-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 18px; max-width: 860px; width: 100%; }
   .tech-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 26px 18px; text-align: center; }
   .tech-icon { font-size: 32px; margin-bottom: 10px; }
-  .tech-name { font-size: 14px; font-weight: 600; color: white; margin-bottom: 6px; }
+  .tech-name { font-size: 14px; font-weight: 600; color: #0a0a0a; margin-bottom: 6px; }
   .tech-role { font-size: 11px; color: var(--muted); line-height: 1.5; }
 
   .s-metrics { background: var(--bg); flex-direction: column; align-items: center; justify-content: center; padding: 60px 80px; gap: 44px; }
@@ -462,10 +454,9 @@
   ══════════════════════════════════════════════════════ -->
   <div class="slide s2" id="slide-1">
     <span class="slide-num">02</span>
-    <!-- <div class="section-label">The Problem</div> -->
     <div class="dark-heading">
       Every year, students start their thesis journey<br><span class="dim-text">completely alone.</span>
-    </div> 
+    </div>
 
     <div class="prob-cards">
       <div class="prob-card c1">
@@ -505,7 +496,7 @@
       <div class="core-sub">A live research graph that adapts as your thesis evolves.</div>
     </div>
 
-    <!-- Real screenshot inside a dark Mac-style browser frame -->
+    <!-- Real screenshot inside a light Mac-style browser frame -->
     <div class="browser-dark">
       <div class="browser-dark-bar">
         <div class="browser-dark-dot" style="background:#ef4444"></div>
@@ -614,7 +605,7 @@
        SLIDE 6 — WOW CONCLUSION
   ══════════════════════════════════════════════════════ -->
   <div class="slide s-wow" id="slide-5">
-    <span class="slide-num" style="color:rgba(255,255,255,0.15)">06</span>
+    <span class="slide-num" style="color:rgba(0,0,0,0.15)">06</span>
     <div class="wow-glow1"></div>
     <div class="wow-glow2"></div>
     <div class="wow-glow3"></div>
@@ -635,7 +626,7 @@
       Where research<br>meets its <span class="grad">match.</span>
     </div>
     <div class="wow-sub">
-      <strong style="color:rgba(255,255,255,0.7)">Studyond</strong> — the first platform that turns every thesis into a navigated journey, connected to industry, built for real impact.
+      <strong style="color:rgba(0,0,0,0.75)">Studyond</strong> — the first platform that turns every thesis into a navigated journey, connected to industry, built for real impact.
     </div>
     <div class="wow-cta">studyond.com</div>
   </div>
@@ -654,10 +645,10 @@
        APPENDIX A·1 — Platform Overview
   ══════════════════════════════════════════════════════ -->
   <div class="slide s-overview" id="slide-7">
-    <span class="slide-num" style="color:rgba(255,255,255,0.15)">A·1</span>
+    <span class="slide-num" style="color:rgba(0,0,0,0.18)">A·1</span>
     <div style="text-align:center">
-      <div class="section-label" style="color:rgba(255,255,255,0.22)">Appendix — Platform Overview</div>
-      <div style="font-size:42px;font-weight:800;color:white;margin-top:10px">One platform. Four AI agents.</div>
+      <div class="section-label" style="color:rgba(0,0,0,0.28)">Appendix — Platform Overview</div>
+      <div style="font-size:42px;font-weight:800;color:#0a0a0a;margin-top:10px">One platform. Four AI agents.</div>
       <div style="font-size:17px;color:var(--muted);margin-top:8px">Everything a student needs — from first idea to final submission.</div>
     </div>
     <div class="browser-frame">
@@ -673,7 +664,7 @@
 
   <!-- APPENDIX A·2 — GPS Feature Detail -->
   <div class="slide s-feat" id="slide-8">
-    <span class="slide-num" style="color:rgba(255,255,255,0.15)">A·2</span>
+    <span class="slide-num" style="color:rgba(0,0,0,0.18)">A·2</span>
     <div class="feat-left">
       <div class="feat-badge fb-blue">Feature 01 · GPS Navigator</div>
       <div class="feat-title">Thesis GPS Navigator</div>
@@ -692,15 +683,15 @@
 
   <!-- APPENDIX A·3 — Orientation -->
   <div class="slide s-feat-rev" id="slide-9">
-    <span class="slide-num" style="color:rgba(255,255,255,0.15)">A·3</span>
+    <span class="slide-num" style="color:rgba(0,0,0,0.18)">A·3</span>
     <div class="feat-left">
       <div class="feat-badge fb-violet">Feature 02 · Orientation</div>
       <div class="feat-title">Thesis Orientation</div>
       <div class="feat-desc">Discover thesis topics and career paths matched to your background. AI guides you before you commit.</div>
       <ul class="feat-list">
-        <li><div class="feat-check" style="background:rgba(124,58,237,0.12);border-color:rgba(124,58,237,0.35);color:#a78bfa">✓</div><span>Searchable topic catalogue (thesis &amp; jobs)</span></li>
-        <li><div class="feat-check" style="background:rgba(124,58,237,0.12);border-color:rgba(124,58,237,0.35);color:#a78bfa">✓</div><span>AI chat for topic exploration &amp; advice</span></li>
-        <li><div class="feat-check" style="background:rgba(124,58,237,0.12);border-color:rgba(124,58,237,0.35);color:#a78bfa">✓</div><span>Auto-generated orientation document</span></li>
+        <li><div class="feat-check" style="background:rgba(124,58,237,0.08);border-color:rgba(124,58,237,0.28);color:#7c3aed">✓</div><span>Searchable topic catalogue (thesis &amp; jobs)</span></li>
+        <li><div class="feat-check" style="background:rgba(124,58,237,0.08);border-color:rgba(124,58,237,0.28);color:#7c3aed">✓</div><span>AI chat for topic exploration &amp; advice</span></li>
+        <li><div class="feat-check" style="background:rgba(124,58,237,0.08);border-color:rgba(124,58,237,0.28);color:#7c3aed">✓</div><span>Auto-generated orientation document</span></li>
       </ul>
     </div>
     <div class="feat-right">
@@ -710,7 +701,7 @@
 
   <!-- APPENDIX A·4 — Profile -->
   <div class="slide s-feat" id="slide-10">
-    <span class="slide-num" style="color:rgba(255,255,255,0.15)">A·4</span>
+    <span class="slide-num" style="color:rgba(0,0,0,0.18)">A·4</span>
     <div class="feat-left">
       <div class="feat-badge fb-green">Feature 03 · Profile</div>
       <div class="feat-title">Student Profile &amp; Portfolio</div>
@@ -728,15 +719,15 @@
 
   <!-- APPENDIX A·5 — Network -->
   <div class="slide s-feat-rev" id="slide-11">
-    <span class="slide-num" style="color:rgba(255,255,255,0.15)">A·5</span>
+    <span class="slide-num" style="color:rgba(0,0,0,0.18)">A·5</span>
     <div class="feat-left">
       <div class="feat-badge fb-amber">Feature 04 · Network</div>
       <div class="feat-title">Network &amp; Referrals</div>
       <div class="feat-desc">Connect with industry experts and supervisors — matched and introduced by AI.</div>
       <ul class="feat-list">
-        <li><div class="feat-check" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.35);color:#fcd34d">✓</div><span>55+ experts &amp; supervisors, 100% match scoring</span></li>
-        <li><div class="feat-check" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.35);color:#fcd34d">✓</div><span>AI-generated conversation starters</span></li>
-        <li><div class="feat-check" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.35);color:#fcd34d">✓</div><span>Filter by field, company &amp; availability</span></li>
+        <li><div class="feat-check" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.28);color:#d97706">✓</div><span>55+ experts &amp; supervisors, 100% match scoring</span></li>
+        <li><div class="feat-check" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.28);color:#d97706">✓</div><span>AI-generated conversation starters</span></li>
+        <li><div class="feat-check" style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.28);color:#d97706">✓</div><span>Filter by field, company &amp; availability</span></li>
       </ul>
     </div>
     <div class="feat-right">
@@ -746,22 +737,22 @@
 
   <!-- APPENDIX A·6 — Tech Stack -->
   <div class="slide s-tech" id="slide-12">
-    <span class="slide-num" style="color:rgba(255,255,255,0.15)">A·6</span>
-    <div style="font-size:42px;font-weight:800;color:white;text-align:center">Built with the best tools in AI</div>
+    <span class="slide-num" style="color:rgba(0,0,0,0.18)">A·6</span>
+    <div style="font-size:42px;font-weight:800;color:#0a0a0a;text-align:center">Built with the best tools in AI</div>
     <div class="tech-grid">
       <div class="tech-card"><div class="tech-icon">🤖</div><div class="tech-name">Claude Sonnet</div><div class="tech-role">GPS agent, Scout sub-agent, orientation AI, profile sorting</div></div>
       <div class="tech-card"><div class="tech-icon">⚛️</div><div class="tech-name">Next.js 16</div><div class="tech-role">React 19, App Router, Tailwind v4, SSE streaming</div></div>
       <div class="tech-card"><div class="tech-icon">🔗</div><div class="tech-name">ReactFlow</div><div class="tech-role">Interactive DAG with custom gpsNode + scoutResult types</div></div>
       <div class="tech-card"><div class="tech-icon">🎬</div><div class="tech-name">Remotion</div><div class="tech-role">Code-first demo video — 71s, 1920×1080 H.264, 7 scenes</div></div>
     </div>
-    <div style="font-size:12px;color:rgba(255,255,255,0.18);letter-spacing:0.07em">100% built during START Hack 2026 · 48 hours</div>
+    <div style="font-size:12px;color:rgba(0,0,0,0.22);letter-spacing:0.07em">100% built during START Hack 2026 · 48 hours</div>
   </div>
 
   <!-- APPENDIX A·7 — What We Built -->
   <div class="slide s-metrics" id="slide-13">
-    <span class="slide-num" style="color:rgba(255,255,255,0.15)">A·7</span>
-    <div class="section-label" style="color:rgba(255,255,255,0.22)">What we delivered</div>
-    <div style="font-size:44px;font-weight:800;color:white;text-align:center">A working product, in 48 hours.</div>
+    <span class="slide-num" style="color:rgba(0,0,0,0.18)">A·7</span>
+    <div class="section-label" style="color:rgba(0,0,0,0.28)">What we delivered</div>
+    <div style="font-size:44px;font-weight:800;color:#0a0a0a;text-align:center">A working product, in 48 hours.</div>
     <div class="metrics-row">
       <div class="metric-card"><div class="metric-num">4</div><div class="metric-label">Fully working AI-powered features</div></div>
       <div class="metric-card"><div class="metric-num">8</div><div class="metric-label">Thesis pipeline milestones tracked</div></div>
@@ -769,7 +760,7 @@
       <div class="metric-card"><div class="metric-num">71s</div><div class="metric-label">Demo video at 1920×1080</div></div>
     </div>
     <div style="font-size:15px;color:var(--muted);text-align:center;max-width:680px;line-height:1.7">
-      Every page is live. Every AI agent is wired to Claude API. The graph restructures in real time. This is not a mockup — <strong style="color:white">it's a product.</strong>
+      Every page is live. Every AI agent is wired to Claude API. The graph restructures in real time. This is not a mockup — <strong style="color:#0a0a0a">it's a product.</strong>
     </div>
   </div>
 
