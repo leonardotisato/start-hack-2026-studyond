@@ -19,7 +19,7 @@ import "@xyflow/react/dist/style.css";
 import { gpsNodeTypes, type GpsNodeData, type ScoutNodeData } from "./gps-node";
 import { NodeDetailPanel } from "./node-detail-panel";
 import { GpsChatPanel, type ChatMessage } from "./gps-chat-panel";
-import type { GpsGraph, GpsNode, GpsEdge, GpsProposal, Recommendation } from "@/types/gps";
+import type { GpsGraph, GpsNode, GpsEdge, GpsProposal, Recommendation, ScoutMessage } from "@/types/gps";
 import {
   computeNodeStates,
   layoutGraph,
@@ -43,6 +43,8 @@ interface ThesisGpsViewProps {
   messages: ChatMessage[];
   onMessagesChange: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   recentlyAdded: Set<string>;
+  scoutConversations: Record<string, ScoutMessage[]>;
+  onScoutConversationsChange: React.Dispatch<React.SetStateAction<Record<string, ScoutMessage[]>>>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -191,6 +193,8 @@ function ThesisGpsViewInner({
   messages,
   onMessagesChange,
   recentlyAdded,
+  scoutConversations,
+  onScoutConversationsChange,
 }: ThesisGpsViewProps) {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -201,11 +205,17 @@ function ThesisGpsViewInner({
   const [pendingProposal, setPendingProposal] = useState<GpsProposal | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [hasFitView, setHasFitView] = useState(false);
-  const [isScoutLoading, setIsScoutLoading] = useState(false);
+  const { fitView } = useReactFlow();
+
+  // Scout streaming state
+  const [isScoutStreaming, setIsScoutStreaming] = useState(false);
+  const [scoutStatusSteps, setScoutStatusSteps] = useState<string[]>([]);
+  const [pendingScoutProposal, setPendingScoutProposal] = useState<GpsProposal | null>(null);
+
+  // Scout recommendation graph nodes
   const [scoutNodes, setScoutNodes] = useState<Node[]>([]);
   const [scoutEdges, setScoutEdges] = useState<Edge[]>([]);
   const [hiddenScoutIds, setHiddenScoutIds] = useState<Set<string>>(new Set());
-  const { fitView } = useReactFlow();
 
   // Compute states and layout
   const computedNodes = useMemo(
@@ -269,7 +279,7 @@ function ThesisGpsViewInner({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentlyAdded]);
 
-  // On first load, zoom in on the active node (the one currently due to complete)
+  // On first load, zoom in on the active node
   useEffect(() => {
     if (hasFitView || nodes.length === 0) return;
     const activeIds = computedNodes
@@ -311,112 +321,233 @@ function ThesisGpsViewInner({
     setSelectedNodeId(null);
   }, [selectedNodeId, onChooseBranch]);
 
-  // --- Show toast then auto-hide ---
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   }
 
-  // --- Studyond Scout: ask for support from node detail panel ---
-  async function handleAskSupport(nodeId: string, query: string) {
-    setIsScoutLoading(true);
-    showToast("Studyond Scout is searching...");
+  // --- Scout: conversational message ---
+  async function handleScoutMessage(nodeId: string, message: string) {
+    const currentMessages = scoutConversations[nodeId] ?? [];
+    const updatedMessages: ScoutMessage[] = [...currentMessages, { role: "user", content: message }];
+    onScoutConversationsChange((prev) => ({ ...prev, [nodeId]: updatedMessages }));
+
+    setIsScoutStreaming(true);
+    setScoutStatusSteps([]);
 
     try {
       const res = await fetch("/api/thesis-gps/scout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, nodeId, query }),
+        body: JSON.stringify({
+          projectId,
+          nodeId,
+          userMessage: message,
+          graph,
+          completedSubtasks,
+          conversationHistory: currentMessages,
+          currentSuggestions: scoutNodes
+            .filter((n) => n.id.startsWith(`scout-${nodeId}-`) && !hiddenScoutIds.has(n.id))
+            .map((n) => ({
+              id: n.id,
+              name: (n.data as ScoutNodeData).name,
+              type: (n.data as ScoutNodeData).type,
+              affiliation: (n.data as ScoutNodeData).affiliation,
+            })),
+        }),
       });
 
-      if (!res.ok) throw new Error("Scout request failed");
-      const data: { nodeId: string; query: string; recommendations: Recommendation[] } = await res.json();
+      if (!res.body) throw new Error("No response body");
 
-      if (data.recommendations.length === 0) {
-        showToast("No matches found. Try a different query.");
-        return;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let pendingRecs: Recommendation[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const json = line.slice(6).trim();
+          if (!json) continue;
+
+          let event: { type: string; text?: string; proposal?: GpsProposal & { dismissSuggestionIds?: string[] }; recommendations?: Recommendation[] };
+          try { event = JSON.parse(json); } catch { continue; }
+
+          if (event.type === "status" && event.text) {
+            setScoutStatusSteps((prev) => [...prev, event.text!]);
+          } else if (event.type === "error") {
+            onScoutConversationsChange((prev) => ({
+              ...prev,
+              [nodeId]: [...(prev[nodeId] ?? []), { role: "user", content: message }, { role: "scout", content: `Error: ${event.text ?? "Something went wrong."}` }],
+            }));
+          } else if (event.type === "recommendations" && event.recommendations) {
+            pendingRecs = event.recommendations;
+
+            // Spawn scout recommendation nodes on the graph below the source node
+            const sourceNodePos = positions.get(nodeId) ?? { x: 400, y: 200 };
+            const occupiedAreas = [
+              ...[...positions.entries()].map(([, pos]) => ({ x: pos.x, y: pos.y, w: 240, h: 120 })),
+              ...scoutNodes.map((n) => ({ x: n.position.x, y: n.position.y, w: 260, h: 160 })),
+            ];
+
+            const scoutCardWidth = 260;
+            const scoutGap = 20;
+            const count = event.recommendations.length;
+            const totalWidth = count * scoutCardWidth + (count - 1) * scoutGap;
+            const startX = sourceNodePos.x - totalWidth / 2 + scoutCardWidth / 2;
+            let baseY = sourceNodePos.y + 180;
+
+            const wouldOverlap = (y: number) =>
+              occupiedAreas.some(
+                (area) =>
+                  Math.abs(area.y - y) < 140 &&
+                  startX < area.x + area.w &&
+                  startX + totalWidth > area.x
+              );
+            while (wouldOverlap(baseY)) {
+              baseY += 160;
+            }
+
+            const newScoutNodes: Node[] = event.recommendations.map((rec, i) => ({
+              id: `scout-${nodeId}-${rec.id}`,
+              type: "scoutResult",
+              position: {
+                x: startX + i * (scoutCardWidth + scoutGap),
+                y: baseY,
+              },
+              data: {
+                name: rec.name,
+                title: rec.title,
+                affiliation: rec.affiliation,
+                email: rec.email,
+                type: rec.type,
+                matchScore: rec.matchScore,
+                fieldNames: rec.fieldNames,
+              } satisfies ScoutNodeData,
+            }));
+
+            const newScoutEdges: Edge[] = event.recommendations.map((rec) => ({
+              id: `scout-edge-${nodeId}-${rec.id}`,
+              source: nodeId,
+              target: `scout-${nodeId}-${rec.id}`,
+              sourceHandle: "scout-source",
+              targetHandle: "scout-target",
+              animated: true,
+              style: { stroke: "#8b5cf6", strokeWidth: 1.5, strokeDasharray: "4 4" },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: 14,
+                height: 14,
+                color: "#8b5cf6",
+              },
+            }));
+
+            setScoutNodes((prev) => [...prev.filter((n) => !n.id.startsWith(`scout-${nodeId}-`)), ...newScoutNodes]);
+            setScoutEdges((prev) => [...prev.filter((e) => !e.id.startsWith(`scout-edge-${nodeId}-`)), ...newScoutEdges]);
+
+            // Focus on scout results
+            setTimeout(() => {
+              fitView({ nodes: newScoutNodes, padding: 0.3, maxZoom: 1.2, duration: 500 });
+            }, 100);
+          } else if (event.type === "done" && event.proposal) {
+            const proposal = event.proposal;
+            const hasChanges =
+              proposal.addNodes.length > 0 ||
+              proposal.updateNodes.length > 0 ||
+              proposal.removeNodeIds.length > 0 ||
+              proposal.addEdges.length > 0 ||
+              proposal.removeEdgeIds.length > 0 ||
+              (proposal.completeSubtasks?.length ?? 0) > 0;
+
+            // Handle suggestion dismissals
+            const dismissIds = proposal.dismissSuggestionIds ?? [];
+            if (dismissIds.length > 0) {
+              setHiddenScoutIds((prev) => {
+                const next = new Set(prev);
+                for (const id of dismissIds) next.add(id);
+                return next;
+              });
+            }
+
+            const scoutMsg: ScoutMessage = {
+              role: "scout",
+              content: proposal.message,
+              hasProposal: hasChanges,
+              recommendations: pendingRecs.length > 0 ? pendingRecs : undefined,
+            };
+
+            onScoutConversationsChange((prev) => ({
+              ...prev,
+              [nodeId]: [...updatedMessages, scoutMsg],
+            }));
+
+            if (hasChanges) {
+              setPendingScoutProposal(proposal);
+              setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded, proposal));
+              setEdges(toFlowEdges(graph.edges, computedNodes, proposal));
+            }
+          }
+        }
       }
-
-      // Get the source node position and find a clear area below it
-      const sourceNodePos = positions.get(nodeId) ?? { x: 400, y: 200 };
-
-      // Collect all existing node positions (graph + existing scout) to avoid overlap
-      const occupiedAreas = [
-        ...[...positions.entries()].map(([, pos]) => ({ x: pos.x, y: pos.y, w: 240, h: 120 })),
-        ...scoutNodes.map((n) => ({ x: n.position.x, y: n.position.y, w: 260, h: 160 })),
-      ];
-
-      // Place scout nodes below the source, spread horizontally and centered
-      const scoutCardWidth = 260;
-      const scoutGap = 20;
-      const count = data.recommendations.length;
-      const totalWidth = count * scoutCardWidth + (count - 1) * scoutGap;
-      const startX = sourceNodePos.x - totalWidth / 2 + scoutCardWidth / 2;
-      let baseY = sourceNodePos.y + 180;
-
-      // Shift down if any existing nodes overlap at baseY
-      const wouldOverlap = (y: number) =>
-        occupiedAreas.some(
-          (area) =>
-            Math.abs(area.y - y) < 140 &&
-            startX < area.x + area.w &&
-            startX + totalWidth > area.x
-        );
-      while (wouldOverlap(baseY)) {
-        baseY += 160;
-      }
-
-      const newScoutNodes: Node[] = data.recommendations.map((rec, i) => ({
-        id: `scout-${nodeId}-${rec.id}`,
-        type: "scoutResult",
-        position: {
-          x: startX + i * (scoutCardWidth + scoutGap),
-          y: baseY,
-        },
-        data: {
-          name: rec.name,
-          title: rec.title,
-          affiliation: rec.affiliation,
-          email: rec.email,
-          type: rec.type,
-          matchScore: rec.matchScore,
-          fieldNames: rec.fieldNames,
-        } satisfies ScoutNodeData,
-      }));
-
-      const newScoutEdges: Edge[] = data.recommendations.map((rec) => ({
-        id: `scout-edge-${nodeId}-${rec.id}`,
-        source: nodeId,
-        target: `scout-${nodeId}-${rec.id}`,
-        sourceHandle: "scout-source",
-        targetHandle: "scout-target",
-        animated: true,
-        style: { stroke: "#8b5cf6", strokeWidth: 1.5, strokeDasharray: "4 4" },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 14,
-          height: 14,
-          color: "#8b5cf6",
-        },
-      }));
-
-      setScoutNodes((prev) => [...prev.filter((n) => !n.id.startsWith(`scout-${nodeId}-`)), ...newScoutNodes]);
-      setScoutEdges((prev) => [...prev.filter((e) => !e.id.startsWith(`scout-edge-${nodeId}-`)), ...newScoutEdges]);
-
-      showToast(`Found ${data.recommendations.length} suggestion${data.recommendations.length > 1 ? "s" : ""}`);
-
-      // Focus on the scout results
-      setTimeout(() => {
-        fitView({ nodes: newScoutNodes, padding: 0.3, maxZoom: 1.2, duration: 500 });
-      }, 100);
     } catch {
-      showToast("Scout search failed. Please try again.");
+      onScoutConversationsChange((prev) => ({
+        ...prev,
+        [nodeId]: [...updatedMessages, { role: "scout", content: "Something went wrong. Please try again." }],
+      }));
     } finally {
-      setIsScoutLoading(false);
+      setIsScoutStreaming(false);
+      setScoutStatusSteps([]);
     }
   }
 
-  // --- Chat with agent (streaming) ---
+  // --- Accept / reject Scout proposal ---
+  function handleAcceptScoutProposal() {
+    if (!pendingScoutProposal || !selectedNodeId) return;
+    const newGraph = applyProposalToGraph(graph, pendingScoutProposal);
+
+    const changedIds = [
+      ...pendingScoutProposal.addNodes.map((n) => n.id),
+      ...pendingScoutProposal.updateNodes.map((u) => u.id),
+    ];
+    onGraphChange(newGraph, changedIds);
+
+    if (pendingScoutProposal.completeSubtasks && pendingScoutProposal.completeSubtasks.length > 0) {
+      const completionMap: Record<string, number[]> = {};
+      for (const { nodeId, subtaskIndices } of pendingScoutProposal.completeSubtasks) {
+        completionMap[nodeId] = subtaskIndices;
+      }
+      onCompleteSubtasks(completionMap);
+    }
+
+    setPendingScoutProposal(null);
+    showToast("Scout changes applied to your graph.");
+
+    onScoutConversationsChange((prev) => ({
+      ...prev,
+      [selectedNodeId]: [...(prev[selectedNodeId] ?? []), { role: "scout", content: "Changes applied to your graph." }],
+    }));
+  }
+
+  function handleRejectScoutProposal() {
+    if (!selectedNodeId) return;
+    setPendingScoutProposal(null);
+    setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded));
+    setEdges(toFlowEdges(graph.edges, computedNodes));
+
+    onScoutConversationsChange((prev) => ({
+      ...prev,
+      [selectedNodeId]: [...(prev[selectedNodeId] ?? []), { role: "scout", content: "Changes discarded." }],
+    }));
+  }
+
+  // --- Chat with main agent (streaming) ---
   async function handleSendMessage(userMessage: string) {
     onMessagesChange((prev) => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
@@ -460,7 +591,6 @@ function ThesisGpsViewInner({
               { role: "agent", content: `Error: ${event.text ?? "Something went wrong."}` },
             ]);
           } else if (event.type === "recommendations" && event.recommendations) {
-            // Store recommendations to attach to the agent's message when it arrives
             pendingRecs = event.recommendations;
           } else if (event.type === "done" && event.proposal) {
             const proposal = event.proposal;
@@ -501,12 +631,11 @@ function ThesisGpsViewInner({
     }
   }
 
-  // --- Accept / reject proposal ---
+  // --- Accept / reject main agent proposal ---
   function handleAcceptProposal() {
     if (!pendingProposal) return;
     const newGraph = applyProposalToGraph(graph, pendingProposal);
 
-    // Collect what changed for the toast
     const parts: string[] = [];
     if (pendingProposal.addNodes.length > 0) {
       const names = pendingProposal.addNodes.map((n) => n.label).join(", ");
@@ -531,7 +660,6 @@ function ThesisGpsViewInner({
     ];
     onGraphChange(newGraph, changedIds);
 
-    // Apply subtask completions if the agent marked any
     if (pendingProposal.completeSubtasks && pendingProposal.completeSubtasks.length > 0) {
       const completionMap: Record<string, number[]> = {};
       for (const { nodeId, subtaskIndices } of pendingProposal.completeSubtasks) {
@@ -621,8 +749,13 @@ function ThesisGpsViewInner({
             isLocked={!isNodeInteractable(graph, selectedNode.id, completedSubtasks)}
             isBranch={isBranchNode(graph, selectedNode.id)}
             onChooseBranch={handleChooseBranch}
-            onAskSupport={handleAskSupport}
-            isScoutLoading={isScoutLoading}
+            scoutMessages={scoutConversations[selectedNode.id] ?? []}
+            onScoutMessage={handleScoutMessage}
+            isScoutStreaming={isScoutStreaming}
+            scoutStatusSteps={scoutStatusSteps}
+            pendingScoutProposal={pendingScoutProposal}
+            onAcceptScoutProposal={handleAcceptScoutProposal}
+            onRejectScoutProposal={handleRejectScoutProposal}
           />
         )}
 

@@ -6,7 +6,7 @@ import { ThesisGpsView } from "@/components/thesis-gps/thesis-gps-view";
 import { TaskBoard } from "@/components/planner/task-board";
 import { CalendarView } from "@/components/planner/calendar-view";
 import { MilestoneTracker } from "@/components/planner/milestone-tracker";
-import type { GpsGraph } from "@/types/gps";
+import type { GpsGraph, ScoutMessage } from "@/types/gps";
 import type { ChatMessage } from "@/components/thesis-gps/gps-chat-panel";
 import { DEFAULT_GRAPH, DEFAULT_COMPLETED_SUBTASKS } from "@/lib/gps-defaults";
 import {
@@ -108,6 +108,7 @@ const STORAGE_KEYS = {
   subtasks: "gps-subtasks",
   events: "gps-events",
   messages: "gps-messages",
+  scoutConversations: "gps-scout-conversations",
 } as const;
 
 function loadSession<T>(key: string, fallback: T): T {
@@ -139,6 +140,9 @@ export function WorkspaceView({ projectId, studentName, projectTitle }: Workspac
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     loadSession(STORAGE_KEYS.messages, [])
   );
+  const [scoutConversations, setScoutConversations] = useState<Record<string, ScoutMessage[]>>(() =>
+    loadSession(STORAGE_KEYS.scoutConversations, {})
+  );
   const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
 
   // --- Persist to sessionStorage on changes ---
@@ -146,6 +150,7 @@ export function WorkspaceView({ projectId, studentName, projectTitle }: Workspac
   useEffect(() => { saveSession(STORAGE_KEYS.subtasks, completedSubtasks); }, [completedSubtasks]);
   useEffect(() => { saveSession(STORAGE_KEYS.events, manualEvents); }, [manualEvents]);
   useEffect(() => { saveSession(STORAGE_KEYS.messages, messages); }, [messages]);
+  useEffect(() => { saveSession(STORAGE_KEYS.scoutConversations, scoutConversations); }, [scoutConversations]);
 
   // --- Toggle subtask ---
   const handleToggleSubtask = useCallback((nodeId: string, index: number) => {
@@ -269,6 +274,8 @@ export function WorkspaceView({ projectId, studentName, projectTitle }: Workspac
         messages={messages}
         onMessagesChange={setMessages}
         recentlyAdded={recentlyAdded}
+        scoutConversations={scoutConversations}
+        onScoutConversationsChange={setScoutConversations}
       />
 
       {/* Task Board */}

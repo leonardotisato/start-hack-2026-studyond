@@ -90,6 +90,32 @@ export interface Recommendation {
   fieldNames: string[]; // resolved field names for display
 }
 
+// -- Scout conversational agent --
+
+export interface ScoutMessage {
+  role: "user" | "scout";
+  content: string;
+  recommendations?: Recommendation[];
+  hasProposal?: boolean;
+}
+
+export interface ScoutSuggestionSummary {
+  id: string;
+  name: string;
+  type: string;
+  affiliation: string;
+}
+
+export interface ScoutAgentRequest {
+  projectId: string;
+  nodeId: string;
+  userMessage: string;
+  graph: GpsGraph;
+  completedSubtasks: Record<string, number[]>;
+  conversationHistory: ScoutMessage[];
+  currentSuggestions: ScoutSuggestionSummary[];
+}
+
 // -- Init request (professor prompt → initial graph) --
 
 export interface GpsInitRequest {
