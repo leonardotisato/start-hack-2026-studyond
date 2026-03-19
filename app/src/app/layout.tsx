@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Crimson_Text } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,6 +12,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const crimsonText = Crimson_Text({
+  variable: "--font-crimson-text",
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  style: ["normal", "italic"],
+});
+
 export const metadata: Metadata = {
   title: "Studyond",
   description: "AI-powered student platform",
@@ -20,7 +27,9 @@ export const metadata: Metadata = {
 const NAV_LINKS = [
   { href: "/profile", label: "Profile" },
   { href: "/network", label: "Network" },
-  { href: "/interview", label: "Interview Prep" },
+  { href: "/orientation", label: "Orientation" },
+  { href: "/planner", label: "Planner" },
+  { href: "/thesis-gps", label: "Thesis GPS" },
   { href: "/planner", label: "Thesis GPS" },
 ];
 
@@ -32,12 +41,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${crimsonText.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <nav className="border-b">
           <div className="container mx-auto flex items-center gap-6 px-4 py-3">
-            <a href="/" className="text-lg font-bold">
+            <a
+              href="/"
+              className="font-display text-xl font-semibold tracking-tight"
+            >
               Studyond
             </a>
             {NAV_LINKS.map((link) => (

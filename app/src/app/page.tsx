@@ -10,9 +10,10 @@ const FEATURES = [
     description: "Connect with alumni, mentors, and industry professionals.",
   },
   {
-    href: "/interview",
-    title: "Interview Prep Coach",
-    description: "AI-generated preparation guides, questions, and strategies.",
+    href: "/orientation",
+    title: "Thesis Orientation",
+    description:
+      "Discover fields, explore topics, and find your thesis direction with AI guidance.",
   },
   {
     href: "/planner",
@@ -37,7 +38,9 @@ export default function Home() {
             className="rounded-lg border p-6 hover:bg-accent transition"
           >
             <h2 className="text-lg font-semibold mb-1">{feature.title}</h2>
-            <p className="text-sm text-muted-foreground">{feature.description}</p>
+            <p className="text-sm text-muted-foreground">
+              {feature.description}
+            </p>
           </a>
         ))}
       </div>
