@@ -23,7 +23,7 @@ export function mockInitGraph(professorPrompt: string): { graph: GpsGraph; messa
         { id: "e-review-final", source: "supervisor-review", target: "final-submission" },
       ],
     },
-    message: "I've created your thesis pipeline based on the professor's guidelines. You're currently on the Literature Review phase. Click any node to see details and subtasks. Feel free to ask me to adjust the timeline or add steps!",
+    message: "I've created your thesis pipeline. You're currently on the Literature Review phase. Click any node to see details and subtasks.",
   };
 }
 
@@ -33,16 +33,30 @@ export function mockAgentProposal(userMessage: string): GpsProposal {
   if (lower.includes("stuck") || lower.includes("help") || lower.includes("blocked")) {
     return {
       addNodes: [
-        { id: "peer-discussion", label: "Peer Discussion", state: "upcoming", description: "Schedule a discussion with peers working on similar topics to unblock your thinking.", subtasks: ["Identify 2-3 relevant peers", "Schedule 30-min session", "Prepare specific questions"] },
+        { id: "peer-discussion", label: "Peer Discussion", state: "upcoming", description: "Schedule a discussion with peers to unblock your thinking.", subtasks: ["Identify 2-3 relevant peers", "Schedule 30-min session", "Prepare specific questions"] },
       ],
       updateNodes: [],
       removeNodeIds: [],
       addEdges: [
-        { id: "e-lit-peer", source: "literature-review", target: "peer-discussion", label: "optional", isSuggestion: true },
+        { id: "e-lit-peer", source: "literature-review", target: "peer-discussion", isSuggestion: true },
         { id: "e-peer-method", source: "peer-discussion", target: "methodology", isSuggestion: true },
       ],
       removeEdgeIds: [],
-      message: "It sounds like you could use some fresh perspectives. I'm suggesting adding a Peer Discussion step — sometimes talking through your literature findings with others can help crystallize your methodology. This is optional — you can accept or reject this change.",
+      completeSubtasks: [],
+      message: "Adding a Peer Discussion step to help you get unstuck. You can accept or reject this change.",
+    };
+  }
+
+  if (lower.includes("expert") || lower.includes("mentor") || lower.includes("supervisor") || lower.includes("funding") || lower.includes("data") || lower.includes("contact")) {
+    return {
+      addNodes: [],
+      updateNodes: [],
+      removeNodeIds: [],
+      addEdges: [],
+      removeEdgeIds: [],
+      completeSubtasks: [],
+      message: "I found some people who could help you. Take a look at the suggestions below.",
+      recommend: { type: "expert" as const, reason: "Student needs expert guidance", keywords: userMessage.split(" ").filter((w) => w.length > 3) },
     };
   }
 
@@ -52,10 +66,11 @@ export function mockAgentProposal(userMessage: string): GpsProposal {
       updateNodes: [],
       removeNodeIds: [],
       addEdges: [
-        { id: "e-lit-draft-parallel", source: "literature-review", target: "first-draft", label: "start writing early", isSuggestion: true },
+        { id: "e-lit-draft-parallel", source: "literature-review", target: "first-draft", isSuggestion: true },
       ],
       removeEdgeIds: [],
-      message: "Good thinking! You can start writing your introduction and literature review chapters while still refining your methodology. I've added a suggested parallel path from Literature Review directly to First Draft. This lets you build momentum on writing without waiting for all prior steps to complete.",
+      completeSubtasks: [],
+      message: "Added a parallel path so you can start writing while still in the literature phase.",
     };
   }
 
@@ -66,6 +81,7 @@ export function mockAgentProposal(userMessage: string): GpsProposal {
     removeNodeIds: [],
     addEdges: [],
     removeEdgeIds: [],
-    message: "Based on your progress, I'd suggest focusing on completing the current active step. Let me know if you need specific advice or want to restructure your pipeline.",
+    completeSubtasks: [],
+    message: "Based on your progress, focus on completing the current active step. Let me know if you need specific advice.",
   };
 }

@@ -33,13 +33,20 @@ export interface GpsNodeUpdate {
   patch: Partial<Omit<GpsNode, "id">>;
 }
 
+export interface GpsSubtaskCompletion {
+  nodeId: string;
+  subtaskIndices: number[]; // indices of subtasks to mark as completed
+}
+
 export interface GpsProposal {
   addNodes: GpsNode[];
   updateNodes: GpsNodeUpdate[];
   removeNodeIds: string[];
   addEdges: GpsEdge[];
   removeEdgeIds: string[];
+  completeSubtasks: GpsSubtaskCompletion[];
   message: string;
+  recommend?: RecommendationRequest;
 }
 
 // -- API request/response --
@@ -59,6 +66,28 @@ export interface GpsAgentRequest {
 
 export interface GpsAgentResponse {
   proposal: GpsProposal;
+}
+
+// -- Recommendations (sub-agent results) --
+
+export type RecommendationType = "supervisor" | "expert" | "company" | "topic" | "university" | "program";
+
+export interface RecommendationRequest {
+  type: RecommendationType | "all";
+  reason: string; // brief explanation of why the user needs this
+  keywords: string[]; // search terms for matching
+}
+
+export interface Recommendation {
+  id: string;
+  type: RecommendationType;
+  name: string;
+  title: string; // role/position or description
+  affiliation: string; // university or company name
+  email: string;
+  reason: string; // why this person/entity is relevant
+  matchScore: number; // 0-1
+  fieldNames: string[]; // resolved field names for display
 }
 
 // -- Init request (professor prompt → initial graph) --

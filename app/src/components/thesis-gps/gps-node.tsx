@@ -129,10 +129,93 @@ export function GpsNodeComponent({ data }: NodeProps) {
       )}
 
       <Handle type="source" position={Position.Right} className="!bg-gray-400 !w-2 !h-2" />
+      <Handle type="source" position={Position.Bottom} id="scout-source" className="!bg-violet-400 !w-2 !h-2" />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Scout result node (recommendation)                                 */
+/* ------------------------------------------------------------------ */
+
+export interface ScoutNodeData {
+  name: string;
+  title: string;
+  affiliation: string;
+  email: string;
+  type: string; // "supervisor" | "expert" | "company" | "topic"
+  matchScore: number;
+  fieldNames: string[];
+  onDismiss?: () => void;
+  [key: string]: unknown;
+}
+
+const SCOUT_TYPE_CONFIG: Record<string, { icon: string; bg: string; border: string }> = {
+  supervisor: { icon: "🎓", bg: "bg-blue-50", border: "border-blue-400" },
+  expert: { icon: "💼", bg: "bg-indigo-50", border: "border-indigo-400" },
+  company: { icon: "🏢", bg: "bg-green-50", border: "border-green-400" },
+  topic: { icon: "📄", bg: "bg-violet-50", border: "border-violet-400" },
+  university: { icon: "🏛️", bg: "bg-amber-50", border: "border-amber-400" },
+  program: { icon: "📚", bg: "bg-teal-50", border: "border-teal-400" },
+};
+
+export function ScoutResultNodeComponent({ data }: NodeProps) {
+  const d = data as ScoutNodeData;
+  const config = SCOUT_TYPE_CONFIG[d.type] ?? SCOUT_TYPE_CONFIG.expert;
+  const matchPercent = Math.round(d.matchScore * 100);
+
+  return (
+    <div className={`px-4 py-3 rounded-lg border-2 min-w-[200px] max-w-[240px] ${config.bg} ${config.border} shadow-md cursor-pointer hover:scale-105 transition-all duration-200`}>
+      <Handle type="target" position={Position.Top} id="scout-target" className="!bg-violet-400 !w-2 !h-2" />
+
+      <div className="flex items-start gap-2 mb-1.5">
+        <span className="text-lg shrink-0">{config.icon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold leading-tight truncate">{d.name}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{d.title}</p>
+        </div>
+        {d.onDismiss && (
+          <button
+            onClick={(e) => { e.stopPropagation(); d.onDismiss!(); }}
+            className="shrink-0 rounded-full p-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition"
+            title="Hide contact"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground mb-1.5">{d.affiliation}</p>
+
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex flex-wrap gap-1">
+          {d.fieldNames.slice(0, 2).map((f) => (
+            <span key={f} className="rounded-full bg-violet-100 border border-violet-200 text-violet-800 px-1.5 py-0.5 text-[9px]">{f}</span>
+          ))}
+        </div>
+        <span className="text-[10px] font-medium text-muted-foreground">{matchPercent}%</span>
+      </div>
+
+      {d.email && (
+        <a
+          href={`mailto:${d.email}`}
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center justify-center gap-1 rounded-md bg-violet-600 text-white px-2 py-1 text-[11px] font-medium hover:bg-violet-700 transition w-full"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+          </svg>
+          Contact
+        </a>
+      )}
+
     </div>
   );
 }
 
 export const gpsNodeTypes = {
   gpsNode: GpsNodeComponent,
+  scoutResult: ScoutResultNodeComponent,
 };

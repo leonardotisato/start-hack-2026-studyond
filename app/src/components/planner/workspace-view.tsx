@@ -158,6 +158,19 @@ export function WorkspaceView({ projectId, studentName, projectTitle }: Workspac
     });
   }, []);
 
+  // --- Complete subtasks (from agent) ---
+  const handleCompleteSubtasks = useCallback((completions: Record<string, number[]>) => {
+    setCompletedSubtasks((prev) => {
+      const next = { ...prev };
+      for (const [nodeId, indices] of Object.entries(completions)) {
+        const existing = new Set(prev[nodeId] ?? []);
+        for (const idx of indices) existing.add(idx);
+        next[nodeId] = [...existing];
+      }
+      return next;
+    });
+  }, []);
+
   // --- Choose branch ---
   const handleChooseBranch = useCallback((chosenNodeId: string) => {
     setGraph((prev) => chooseBranch(prev, chosenNodeId));
@@ -251,6 +264,7 @@ export function WorkspaceView({ projectId, studentName, projectTitle }: Workspac
         onGraphChange={handleGraphChange}
         completedSubtasks={completedSubtasks}
         onToggleSubtask={handleToggleSubtask}
+        onCompleteSubtasks={handleCompleteSubtasks}
         onChooseBranch={handleChooseBranch}
         messages={messages}
         onMessagesChange={setMessages}
