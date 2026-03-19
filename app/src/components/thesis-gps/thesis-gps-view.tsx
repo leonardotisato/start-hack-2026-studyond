@@ -27,6 +27,8 @@ import {
   getNodeProgress,
   isNodeInteractable,
 } from "@/lib/gps-graph-utils";
+import { TaskBoard } from "@/components/planner/task-board";
+import type { WorkspaceTask } from "@/components/planner/workspace-view";
 
 /* ------------------------------------------------------------------ */
 /*  Props                                                              */
@@ -53,6 +55,7 @@ interface ThesisGpsViewProps {
   onHiddenScoutIdsChange: React.Dispatch<React.SetStateAction<Set<string>>>;
   studentName?: string;
   supervisorName?: string;
+  tasks: WorkspaceTask[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -211,8 +214,10 @@ function ThesisGpsViewInner({
   onHiddenScoutIdsChange: setHiddenScoutIds,
   studentName,
   supervisorName,
+  tasks,
 }: ThesisGpsViewProps) {
   const graphContainerRef = useRef<HTMLDivElement>(null);
+  const [activeView, setActiveView] = useState<"graph" | "tasks">("graph");
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -799,8 +804,40 @@ function ThesisGpsViewInner({
 
   return (
     <div ref={graphContainerRef} className="flex gap-4 h-[520px]">
-      {/* Graph */}
-      <div className="flex-1 relative rounded-lg border bg-background overflow-hidden">
+      {/* Left panel: Graph or Tasks */}
+      <div className="flex-1 relative rounded-lg border bg-background overflow-hidden flex flex-col">
+        {/* View toggle */}
+        <div className="absolute top-3 right-3 z-10 flex rounded-md border bg-background/90 backdrop-blur shadow-sm overflow-hidden">
+          <button
+            onClick={() => setActiveView("graph")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+              activeView === "graph"
+                ? "bg-violet-100 text-violet-700"
+                : "text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="6" cy="6" r="3" /><circle cx="18" cy="18" r="3" /><circle cx="18" cy="6" r="3" />
+              <path d="M8.5 7.5 15.5 16.5" /><path d="M8.5 6 15.5 6" />
+            </svg>
+            Graph
+          </button>
+          <button
+            onClick={() => setActiveView("tasks")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors border-l ${
+              activeView === "tasks"
+                ? "bg-violet-100 text-violet-700"
+                : "text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+            Tasks
+          </button>
+        </div>
+
+        {activeView === "graph" ? (
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -815,27 +852,44 @@ function ThesisGpsViewInner({
           <Background />
           <Controls />
         </ReactFlow>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-4">
+            <TaskBoard tasks={tasks} onToggleSubtask={onToggleSubtask} />
+          </div>
+        )}
 
         {/* Presence chip */}
         <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-full bg-background/90 backdrop-blur border shadow-sm px-2.5 py-1.5">
-          <div className="relative group" title={studentName ?? "Student"}>
-            <div className="size-7 rounded-full bg-violet-600 flex items-center justify-center text-[11px] font-semibold text-white ring-2 ring-green-400 ring-offset-1 ring-offset-background">
+          <div className="relative group">
+            <div className="size-7 rounded-full bg-violet-600 flex items-center justify-center text-[11px] font-semibold text-white ring-2 ring-green-400 ring-offset-1 ring-offset-background cursor-default">
               {(studentName ?? "S").split(" ").map((w) => w[0]).join("").slice(0, 2)}
             </div>
             <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-green-500 border-2 border-background" />
+            <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+              <div className="bg-gray-900 text-white text-[11px] rounded-md px-2.5 py-1.5 shadow-lg">
+                <p className="font-medium">{studentName ?? "Student"}</p>
+                <p className="text-green-400 text-[10px]">Online now</p>
+              </div>
+            </div>
           </div>
           {supervisorName && (
-            <div className="relative group" title={`${supervisorName} (offline)`}>
-              <div className="size-7 rounded-full bg-slate-500 flex items-center justify-center text-[11px] font-semibold text-white ring-2 ring-red-400 ring-offset-1 ring-offset-background">
+            <div className="relative group">
+              <div className="size-7 rounded-full bg-slate-500 flex items-center justify-center text-[11px] font-semibold text-white ring-2 ring-red-400 ring-offset-1 ring-offset-background cursor-default">
                 {supervisorName.replace(/^(Prof\.|Dr\.|Mr\.|Ms\.)\s*/i, "").split(" ").map((w) => w[0]).join("").slice(0, 2)}
               </div>
               <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 border-2 border-background" />
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                <div className="bg-gray-900 text-white text-[11px] rounded-md px-2.5 py-1.5 shadow-lg">
+                  <p className="font-medium">{supervisorName}</p>
+                  <p className="text-red-400 text-[10px]">Last seen 2 hours ago</p>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
         {/* Scout controls */}
-        {scoutNodes.length > 0 && (
+        {activeView === "graph" && scoutNodes.length > 0 && (
           <div className="absolute bottom-3 left-14 z-10 flex gap-1.5">
             {hiddenScoutIds.size < scoutNodes.length && (
               <button
@@ -862,7 +916,7 @@ function ThesisGpsViewInner({
           </div>
         )}
 
-        {selectedNode && (
+        {selectedNode && activeView === "graph" && (
           <NodeDetailPanel
             node={selectedNode}
             onClose={() => setSelectedNodeId(null)}

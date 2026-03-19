@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ThesisGpsView } from "@/components/thesis-gps/thesis-gps-view";
-import { TaskBoard } from "@/components/planner/task-board";
 import { CalendarView } from "@/components/planner/calendar-view";
 import { MilestoneTracker } from "@/components/planner/milestone-tracker";
 import type { GpsGraph, ScoutMessage } from "@/types/gps";
@@ -345,10 +344,8 @@ export function WorkspaceView({
         onHiddenScoutIdsChange={setHiddenScoutIds}
         studentName={studentName}
         supervisorName={supervisorName}
+        tasks={graphTasks}
       />
-
-      {/* Task Board */}
-      <TaskBoard tasks={graphTasks} onToggleSubtask={handleToggleSubtask} />
 
       {/* Calendar */}
       <Tabs defaultValue="calendar">
