@@ -19,16 +19,8 @@ import "@xyflow/react/dist/style.css";
 import { gpsNodeTypes, type GpsNodeData, type ScoutNodeData } from "./gps-node";
 import { NodeDetailPanel } from "./node-detail-panel";
 import { GpsChatPanel, type ChatMessage } from "./gps-chat-panel";
-import type {
-  GpsGraph,
-  GpsNode,
-  GpsEdge,
-  GpsProposal,
-  Recommendation,
-  ScoutMessage,
-  ContextSource,
-  ScoutConversationAttachment,
-} from "@/types/gps";
+import type { GpsGraph, GpsNode, GpsEdge, GpsProposal, ProposedEvent, Recommendation, ScoutMessage, ContextSource, ScoutConversationAttachment } from "@/types/gps";
+import type { WorkspaceEvent } from "@/components/planner/workspace-view";
 import {
   computeNodeStates,
   layoutGraph,
@@ -67,6 +59,10 @@ interface ThesisGpsViewProps {
   studentName?: string;
   supervisorName?: string;
   tasks: WorkspaceTask[];
+  onAddEvents?: (events: ProposedEvent[]) => void;
+  pendingMeetings?: WorkspaceEvent[];
+  onResolveMeeting?: (id: string, decision: "approved" | "rejected") => void;
+  onPendingEventsChange?: (events: ProposedEvent[]) => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -229,6 +225,10 @@ function ThesisGpsViewInner({
   studentName,
   supervisorName,
   tasks,
+  onAddEvents,
+  pendingMeetings = [],
+  onResolveMeeting,
+  onPendingEventsChange,
 }: ThesisGpsViewProps) {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const [activeView, setActiveView] = useState<"graph" | "tasks">("graph");
@@ -242,6 +242,8 @@ function ThesisGpsViewInner({
   );
   const [toast, setToast] = useState<string | null>(null);
   const [hasFitView, setHasFitView] = useState(false);
+  const [showSupervisorInbox, setShowSupervisorInbox] = useState(false);
+  const supervisorInboxRef = useRef<HTMLDivElement>(null);
   const { fitView } = useReactFlow();
 
   // Scout streaming state
@@ -374,6 +376,23 @@ function ThesisGpsViewInner({
     }, 50);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeView]);
+
+  // Notify parent of proposed events for calendar preview
+  useEffect(() => {
+    onPendingEventsChange?.(pendingProposal?.addEvents ?? []);
+  }, [pendingProposal, onPendingEventsChange]);
+
+  // Close supervisor inbox on click outside
+  useEffect(() => {
+    if (!showSupervisorInbox) return;
+    function handleClick(e: MouseEvent) {
+      if (supervisorInboxRef.current && !supervisorInboxRef.current.contains(e.target as globalThis.Node)) {
+        setShowSupervisorInbox(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showSupervisorInbox]);
 
   // Selected node with computed state
   const selectedNode = useMemo(() => {
@@ -913,13 +932,15 @@ function ThesisGpsViewInner({
             }, 100);
           } else if (event.type === "done" && event.proposal) {
             const proposal = event.proposal;
-            const hasChanges =
+            const hasGraphChanges =
               proposal.addNodes.length > 0 ||
               proposal.updateNodes.length > 0 ||
               proposal.removeNodeIds.length > 0 ||
               proposal.addEdges.length > 0 ||
               proposal.removeEdgeIds.length > 0 ||
               (proposal.completeSubtasks?.length ?? 0) > 0;
+            const hasEvents = (proposal.addEvents?.length ?? 0) > 0;
+            const hasChanges = hasGraphChanges || hasEvents;
 
             const finalMessage = noResultsMessage
               ? `${proposal.message}\n\n⚠️ ${noResultsMessage}`
@@ -938,17 +959,10 @@ function ThesisGpsViewInner({
 
             if (hasChanges) {
               setPendingProposal(proposal);
-              setNodes(
-                toFlowNodes(
-                  computedNodes,
-                  positions,
-                  completedSubtasks,
-                  graph,
-                  recentlyAdded,
-                  proposal,
-                ),
-              );
-              setEdges(toFlowEdges(graph.edges, computedNodes, proposal));
+              if (hasGraphChanges) {
+                setNodes(toFlowNodes(computedNodes, positions, completedSubtasks, graph, recentlyAdded, proposal));
+                setEdges(toFlowEdges(graph.edges, computedNodes, proposal));
+              }
             }
           }
         }
@@ -1012,6 +1026,12 @@ function ThesisGpsViewInner({
       }
     }
 
+    if (pendingProposal.addEvents && pendingProposal.addEvents.length > 0 && onAddEvents) {
+      onAddEvents(pendingProposal.addEvents);
+      const eventLabels = pendingProposal.addEvents.map((e) => e.label).join(", ");
+      parts.push(`Scheduled: ${eventLabels}`);
+    }
+
     setPendingProposal(null);
 
     if (parts.length > 0) {
@@ -1020,7 +1040,7 @@ function ThesisGpsViewInner({
 
     onMessagesChange((prev) => [
       ...prev,
-      { role: "agent", content: "Changes applied to your graph." },
+      { role: "agent", content: "Changes applied." },
     ]);
   }
 
@@ -1073,24 +1093,73 @@ function ThesisGpsViewInner({
               </div>
             </div>
             {supervisorName && (
-              <div className="relative group">
-                <div className="size-7 rounded-full bg-slate-500 flex items-center justify-center text-[11px] font-semibold text-white ring-2 ring-red-400 ring-offset-1 ring-offset-background cursor-default">
-                  {supervisorName
-                    .replace(/^(Prof\.|Dr\.|Mr\.|Ms\.)\s*/i, "")
-                    .split(" ")
-                    .map((w) => w[0])
-                    .join("")
-                    .slice(0, 2)}
-                </div>
-                <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 border-2 border-background" />
-                <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                  <div className="bg-gray-900 text-white text-[11px] rounded-md px-2.5 py-1.5 shadow-lg">
-                    <p className="font-medium">{supervisorName}</p>
-                    <p className="text-red-400 text-[10px]">
-                      Last seen 2 hours ago
-                    </p>
+              <div className="relative" ref={supervisorInboxRef}>
+                <button
+                  onClick={() => setShowSupervisorInbox((v) => !v)}
+                  className="relative group"
+                >
+                  <div className="size-7 rounded-full bg-slate-500 flex items-center justify-center text-[11px] font-semibold text-white ring-2 ring-red-400 ring-offset-1 ring-offset-background cursor-pointer">
+                    {supervisorName.replace(/^(Prof\.|Dr\.|Mr\.|Ms\.)\s*/i, "").split(" ").map((w) => w[0]).join("").slice(0, 2)}
                   </div>
-                </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 border-2 border-background" />
+                  {pendingMeetings.length > 0 && (
+                    <span className="absolute -top-1 -right-1 size-4 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center text-[9px] font-bold text-white animate-pulse">
+                      {pendingMeetings.length}
+                    </span>
+                  )}
+                  <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                    <div className="bg-gray-900 text-white text-[11px] rounded-md px-2.5 py-1.5 shadow-lg">
+                      <p className="font-medium">{supervisorName}</p>
+                      <p className="text-red-400 text-[10px]">Last seen 2 hours ago</p>
+                      {pendingMeetings.length > 0 && (
+                        <p className="text-amber-400 text-[10px]">{pendingMeetings.length} pending request{pendingMeetings.length !== 1 ? "s" : ""} — click to open</p>
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                {/* Supervisor inbox popover */}
+                {showSupervisorInbox && (
+                  <div className="absolute left-0 top-full mt-2 w-80 bg-background border rounded-lg shadow-xl z-[100] overflow-hidden">
+                    <div className="flex items-center gap-2.5 px-3 py-2.5 bg-slate-50 border-b">
+                      <div className="size-6 rounded-full bg-slate-600 flex items-center justify-center text-[10px] font-semibold text-white">
+                        {supervisorName.replace(/^(Prof\.|Dr\.|Mr\.|Ms\.)\s*/i, "").split(" ").map((w) => w[0]).join("").slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-800">{supervisorName}</p>
+                        <p className="text-[10px] text-slate-500">Inbox — meeting requests</p>
+                      </div>
+                    </div>
+                    {pendingMeetings.length === 0 ? (
+                      <p className="px-3 py-4 text-xs text-muted-foreground text-center">No pending requests</p>
+                    ) : (
+                      <div className="divide-y max-h-64 overflow-y-auto">
+                        {pendingMeetings.map((ev) => (
+                          <div key={ev.id} className="px-3 py-2.5">
+                            <p className="text-xs font-medium">{ev.label}</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {ev.date}{ev.attendees && ev.attendees.length > 0 ? ` · ${ev.attendees.join(", ")}` : ""}
+                            </p>
+                            <div className="flex gap-1.5 mt-2">
+                              <button
+                                onClick={() => { onResolveMeeting?.(ev.id, "approved"); }}
+                                className="flex-1 rounded-md bg-green-600 text-white text-[11px] font-medium py-1 hover:bg-green-700 transition"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => { onResolveMeeting?.(ev.id, "rejected"); }}
+                                className="flex-1 rounded-md border border-gray-300 text-[11px] font-medium py-1 hover:bg-gray-100 transition"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

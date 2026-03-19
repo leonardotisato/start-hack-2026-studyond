@@ -43,6 +43,7 @@ export function mockAgentProposal(userMessage: string): GpsProposal {
       ],
       removeEdgeIds: [],
       completeSubtasks: [],
+      addEvents: [],
       message: "Adding a Peer Discussion step to help you get unstuck. You can accept or reject this change.",
     };
   }
@@ -55,6 +56,7 @@ export function mockAgentProposal(userMessage: string): GpsProposal {
       addEdges: [],
       removeEdgeIds: [],
       completeSubtasks: [],
+      addEvents: [],
       message: "I found some people who could help you. Take a look at the suggestions below.",
       recommend: { type: "expert" as const, reason: "Student needs expert guidance", keywords: userMessage.split(" ").filter((w) => w.length > 3) },
     };
@@ -70,6 +72,7 @@ export function mockAgentProposal(userMessage: string): GpsProposal {
       ],
       removeEdgeIds: [],
       completeSubtasks: [],
+      addEvents: [],
       message: "Added a parallel path so you can start writing while still in the literature phase.",
     };
   }
@@ -82,6 +85,7 @@ export function mockAgentProposal(userMessage: string): GpsProposal {
     addEdges: [],
     removeEdgeIds: [],
     completeSubtasks: [],
+    addEvents: [],
     message: "Based on your progress, focus on completing the current active step. Let me know if you need specific advice.",
   };
 }

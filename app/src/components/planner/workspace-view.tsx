@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ThesisGpsView } from "@/components/thesis-gps/thesis-gps-view";
 import { CalendarView } from "@/components/planner/calendar-view";
 import { MilestoneTracker } from "@/components/planner/milestone-tracker";
-import type { GpsGraph, ScoutMessage } from "@/types/gps";
+import type { GpsGraph, ScoutMessage, ProposedEvent } from "@/types/gps";
 import type { ChatMessage } from "@/components/thesis-gps/gps-chat-panel";
 import type { Node, Edge } from "@xyflow/react";
 import { ConfettiCanvas, fireConfetti } from "@/components/ui/confetti";
@@ -33,6 +33,8 @@ export interface WorkspaceEvent {
   date: string; // YYYY-MM-DD
   label: string;
   type: "milestone" | "meeting" | "deadline";
+  approvalStatus?: "pending" | "approved" | "rejected";
+  attendees?: string[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -165,6 +167,8 @@ export function WorkspaceView({
     return new Set(arr);
   });
   const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
+  const [previewEvents, setPreviewEvents] = useState<ProposedEvent[]>([]);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   // --- Persist to sessionStorage on changes ---
   useEffect(() => {
@@ -191,6 +195,13 @@ export function WorkspaceView({
   useEffect(() => {
     saveSession(STORAGE_KEYS.hiddenScoutIds, [...hiddenScoutIds]);
   }, [hiddenScoutIds]);
+
+  // --- Scroll to calendar when proposed events appear ---
+  useEffect(() => {
+    if (previewEvents.length > 0 && calendarRef.current) {
+      calendarRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [previewEvents]);
 
   // --- Toggle subtask ---
   const handleToggleSubtask = useCallback((nodeId: string, index: number) => {
@@ -239,6 +250,22 @@ export function WorkspaceView({
     [],
   );
 
+  // --- Add events from agent proposals ---
+  const handleAddEvents = useCallback(
+    (events: ProposedEvent[]) => {
+      const newEvents: WorkspaceEvent[] = events.map((e) => ({
+        id: `agent-ev-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        date: e.date,
+        label: e.label,
+        type: e.type,
+        attendees: e.attendees,
+        approvalStatus: e.type === "meeting" ? "pending" : undefined,
+      }));
+      setManualEvents((prev) => [...prev, ...newEvents]);
+    },
+    [],
+  );
+
   // --- Derived data ---
   const graphTasks = useMemo(
     () => deriveTasksFromGraph(graph, completedSubtasks),
@@ -250,9 +277,26 @@ export function WorkspaceView({
     [graph, completedSubtasks],
   );
 
+  const previewWorkspaceEvents: WorkspaceEvent[] = useMemo(
+    () =>
+      previewEvents.map((e, i) => ({
+        id: `preview-${i}`,
+        date: e.date,
+        label: e.label,
+        type: e.type,
+        attendees: e.attendees,
+      })),
+    [previewEvents],
+  );
+
+  const previewEventIds = useMemo(
+    () => new Set(previewWorkspaceEvents.map((e) => e.id)),
+    [previewWorkspaceEvents],
+  );
+
   const allEvents = useMemo(
-    () => [...graphEvents, ...manualEvents],
-    [graphEvents, manualEvents],
+    () => [...graphEvents, ...manualEvents, ...previewWorkspaceEvents],
+    [graphEvents, manualEvents, previewWorkspaceEvents],
   );
 
   const computedNodes = useMemo(
@@ -344,14 +388,23 @@ export function WorkspaceView({
         studentName={studentName}
         supervisorName={supervisorName}
         tasks={graphTasks}
+        onAddEvents={handleAddEvents}
+        pendingMeetings={manualEvents.filter((e) => e.approvalStatus === "pending")}
+        onResolveMeeting={(id, decision) => {
+          setManualEvents((prev) =>
+            prev.map((e) => (e.id === id ? { ...e, approvalStatus: decision } : e)),
+          );
+        }}
+        onPendingEventsChange={setPreviewEvents}
       />
 
       {/* Calendar */}
-      <div className="rounded-xl border bg-card p-4 shadow-sm">
+      <div ref={calendarRef} className="rounded-xl border bg-card p-4 shadow-sm">
         <CalendarView
           events={allEvents}
           onEventsChange={setManualEvents}
           graphEventIds={new Set(graphEvents.map((e) => e.id))}
+          previewEventIds={previewEventIds}
         />
       </div>
 
