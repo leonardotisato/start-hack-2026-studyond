@@ -1,64 +1,53 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 const client = new Anthropic();
 
-const SYSTEM_PROMPT = `You are a networking coach for university students approaching industry professionals.
-Given the student and expert profiles, generate personalized conversation starters.
+const SYSTEM_PROMPT = `You are a networking coach for university students.
+Generate brief, natural conversation starters. Be specific, not generic. Keep each item to 1-2 sentences max.
 
-Your response MUST use this exact markdown structure:
+Use this exact markdown structure:
 
 ## Icebreakers
-3-4 casual, friendly openers that reference shared fields or interests. Each should feel natural, not scripted.
-
-## Conversation Topics
-4-5 substantive topics that bridge the student's research interests with the expert's domain. Be specific — reference their actual fields and expertise.
+2 casual openers referencing their shared fields.
 
 ## Questions to Ask
-3-4 thoughtful questions the student can ask that show genuine interest in the expert's work. Avoid generic questions.
+3 sharp, specific questions showing genuine interest in the expert's work.
 
 ## Common Ground
-A brief paragraph (2-3 sentences) highlighting what connects these two people and why a conversation would be mutually valuable.`;
+One sentence on what connects them.`;
 
 export async function POST(req: NextRequest) {
-  try {
-    const { student, expert } = await req.json();
+  const { student, expert } = await req.json();
 
-    const userMessage = `Student Profile:
-- Name: ${student.name}
-- Degree: ${student.degree}
-- Fields: ${student.fields.join(", ")}
-- Skills: ${student.skills.join(", ")}
-- About: ${student.about ?? "Not provided"}
+  const userMessage = `Student: ${student.name}, ${student.degree}, fields: ${student.fields.join(", ")}, skills: ${student.skills.slice(0, 5).join(", ")}.
+Expert: ${expert.name}, ${expert.title} at ${expert.company ?? "Independent"}, fields: ${expert.fields.join(", ")}.`;
 
-Expert Profile:
-- Name: ${expert.name}
-- Title: ${expert.title}
-- Company: ${expert.company ?? "Independent"}
-- Fields: ${expert.fields.join(", ")}
-- Objectives: ${expert.objectives.join(", ")}
-- About: ${expert.about ?? "Not provided"}
+  const stream = client.messages.stream({
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 400,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userMessage }],
+  });
 
-Generate personalized conversation starters for the student to use when reaching out to this expert.`;
+  const readable = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const chunk of stream) {
+          if (
+            chunk.type === "content_block_delta" &&
+            chunk.delta.type === "text_delta"
+          ) {
+            controller.enqueue(new TextEncoder().encode(chunk.delta.text));
+          }
+        }
+      } finally {
+        controller.close();
+      }
+    },
+  });
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userMessage }],
-    });
-
-    const text = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("");
-
-    return NextResponse.json({ suggestions: text });
-  } catch (error) {
-    console.error("Icebreaker generation failed:", error);
-    return NextResponse.json(
-      { error: "Failed to generate conversation starters" },
-      { status: 500 }
-    );
-  }
+  return new Response(readable, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }

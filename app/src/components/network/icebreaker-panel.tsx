@@ -2,12 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Expert, Company, Student, Field } from "@/types";
@@ -81,14 +81,24 @@ export function IcebreakerPanel({
         }),
       });
 
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
         throw new Error("Failed to generate suggestions");
       }
 
-      const data = await res.json();
-      setSuggestions(data.suggestions);
+      setLoading(false);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        setSuggestions(accumulated);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -117,19 +127,17 @@ export function IcebreakerPanel({
   const sections = suggestions ? parseSections(suggestions) : [];
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="right" className="overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>
-            Conversation Starters
-          </SheetTitle>
-          <SheetDescription>
-            AI-generated icebreakers for connecting with{" "}
-            {expert?.firstName} {expert?.lastName}
-          </SheetDescription>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Conversation Starters</DialogTitle>
+          <DialogDescription>
+            AI-generated icebreakers for connecting with {expert?.firstName}{" "}
+            {expert?.lastName}
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="space-y-4 px-4 pb-4">
+        <div className="space-y-4">
           {loading && (
             <div className="py-12 text-center">
               <div className="inline-block size-6 animate-spin rounded-full border-2 border-muted border-t-foreground" />
@@ -160,37 +168,40 @@ export function IcebreakerPanel({
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {section.content.split("\n").filter(Boolean).map((line, j) => {
-                    const trimmed = line.replace(/^[-*]\s*/, "").trim();
-                    if (!trimmed) return null;
-                    const globalIdx = i * 100 + j;
-                    return (
-                      <div
-                        key={j}
-                        className="group flex items-start gap-2 rounded-md p-2 hover:bg-muted/50"
-                      >
-                        <p className="flex-1 text-sm">{trimmed}</p>
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          className="opacity-0 group-hover:opacity-100 shrink-0"
-                          onClick={() => handleCopy(trimmed, globalIdx)}
+                  {section.content
+                    .split("\n")
+                    .filter(Boolean)
+                    .map((line, j) => {
+                      const trimmed = line.replace(/^[-*]\s*/, "").trim();
+                      if (!trimmed) return null;
+                      const globalIdx = i * 100 + j;
+                      return (
+                        <div
+                          key={j}
+                          className="group flex items-start gap-2 rounded-md p-2 hover:bg-muted/50"
                         >
-                          {copiedIdx === globalIdx ? (
-                            <span className="text-xs">&#10003;</span>
-                          ) : (
-                            <span className="text-xs">&#9776;</span>
-                          )}
-                        </Button>
-                      </div>
-                    );
-                  })}
+                          <p className="flex-1 text-sm">{trimmed}</p>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="opacity-0 group-hover:opacity-100 shrink-0"
+                            onClick={() => handleCopy(trimmed, globalIdx)}
+                          >
+                            {copiedIdx === globalIdx ? (
+                              <span className="text-xs">&#10003;</span>
+                            ) : (
+                              <span className="text-xs">&#9776;</span>
+                            )}
+                          </Button>
+                        </div>
+                      );
+                    })}
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

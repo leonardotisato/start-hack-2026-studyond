@@ -2,8 +2,12 @@
 
 import { useState, useMemo } from "react";
 import { sortByMatch } from "@/lib/matching";
+import { getMockMutualConnections } from "@/lib/mock-connections";
 import { ExpertCard } from "@/components/network/expert-card";
-import { NetworkFilters, type PersonType } from "@/components/network/network-filters";
+import {
+  NetworkFilters,
+  type PersonType,
+} from "@/components/network/network-filters";
 import { IntroRequestDialog } from "@/components/network/intro-request-dialog";
 import { IcebreakerPanel } from "@/components/network/icebreaker-panel";
 import type { Expert, Supervisor, Company, Field, Student } from "@/types";
@@ -29,22 +33,26 @@ export function NetworkView({
 }: NetworkViewProps) {
   const [personType, setPersonType] = useState<PersonType>("all");
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
+    null,
+  );
   const [interviewOnly, setInterviewOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [introExpertId, setIntroExpertId] = useState<string | null>(null);
   const [introOpen, setIntroOpen] = useState(false);
-  const [icebreakerExpertId, setIcebreakerExpertId] = useState<string | null>(null);
+  const [icebreakerExpertId, setIcebreakerExpertId] = useState<string | null>(
+    null,
+  );
   const [icebreakerOpen, setIcebreakerOpen] = useState(false);
 
   const companyMap = useMemo(
     () => new Map(companies.map((c) => [c.id, c])),
-    [companies]
+    [companies],
   );
   const fieldMap = useMemo(
     () => new Map(fields.map((f) => [f.id, f])),
-    [fields]
+    [fields],
   );
 
   const people: NetworkPerson[] = useMemo(() => {
@@ -59,9 +67,8 @@ export function NetworkView({
   }, [experts, supervisors, personType]);
 
   const matched = useMemo(
-    () =>
-      sortByMatch(people, student.fieldIds, (p) => p.data.fieldIds),
-    [people, student.fieldIds]
+    () => sortByMatch(people, student.fieldIds, (p) => p.data.fieldIds),
+    [people, student.fieldIds],
   );
 
   const filtered = useMemo(() => {
@@ -72,9 +79,11 @@ export function NetworkView({
         const name = `${p.firstName} ${p.lastName}`.toLowerCase();
         if (!name.includes(query)) return false;
       }
-      if (selectedFieldId && !p.fieldIds.includes(selectedFieldId)) return false;
+      if (selectedFieldId && !p.fieldIds.includes(selectedFieldId))
+        return false;
       if (item.kind === "expert") {
-        if (selectedCompanyId && item.data.companyId !== selectedCompanyId) return false;
+        if (selectedCompanyId && item.data.companyId !== selectedCompanyId)
+          return false;
         if (interviewOnly && !item.data.offerInterviews) return false;
       } else {
         if (selectedCompanyId) return false;
@@ -85,11 +94,34 @@ export function NetworkView({
   }, [matched, searchQuery, selectedFieldId, selectedCompanyId, interviewOnly]);
 
   const introExpert = experts.find((e) => e.id === introExpertId) ?? null;
-  const introCompany = introExpert ? companyMap.get(introExpert.companyId) ?? null : null;
+  const introCompany = introExpert
+    ? (companyMap.get(introExpert.companyId) ?? null)
+    : null;
+  const introMutualConnections = introExpert
+    ? getMockMutualConnections(introExpert.id)
+    : [];
 
-  const icebreakerExpert = experts.find((e) => e.id === icebreakerExpertId) ?? null;
-  const icebreakerCompany = icebreakerExpert
-    ? companyMap.get(icebreakerExpert.companyId) ?? null
+  const icebreakerExpert = useMemo((): Expert | null => {
+    if (!icebreakerExpertId) return null;
+    const expert = experts.find((e) => e.id === icebreakerExpertId);
+    if (expert) return expert;
+    const sup = supervisors.find((s) => s.id === icebreakerExpertId);
+    if (!sup) return null;
+    return {
+      id: sup.id,
+      firstName: sup.firstName,
+      lastName: sup.lastName,
+      email: sup.email,
+      title: sup.title,
+      companyId: "",
+      offerInterviews: false,
+      about: sup.about,
+      objectives: [],
+      fieldIds: sup.fieldIds,
+    };
+  }, [icebreakerExpertId, experts, supervisors]);
+  const icebreakerCompany = icebreakerExpert?.companyId
+    ? (companyMap.get(icebreakerExpert.companyId) ?? null)
     : null;
 
   const studentFields = student.fieldIds
@@ -140,6 +172,7 @@ export function NetworkView({
                 fields={personFields}
                 sharedFieldIds={item.match.sharedFieldIds}
                 matchScore={item.match.score}
+                mutualConnections={getMockMutualConnections(expert.id)}
                 onRequestIntro={(id) => {
                   setIntroExpertId(id);
                   setIntroOpen(true);
@@ -169,10 +202,18 @@ export function NetworkView({
             <ExpertCard
               key={sup.id}
               expert={fakeExpert}
-              company={{ id: "", name: "University", description: "", about: null, size: "", domains: [] }}
+              company={{
+                id: "",
+                name: "University",
+                description: "",
+                about: null,
+                size: "",
+                domains: [],
+              }}
               fields={personFields}
               sharedFieldIds={item.match.sharedFieldIds}
               matchScore={item.match.score}
+              mutualConnections={[]}
               onRequestIntro={(id) => {
                 setIntroExpertId(id);
                 setIntroOpen(true);
@@ -189,6 +230,7 @@ export function NetworkView({
       <IntroRequestDialog
         expert={introExpert}
         company={introCompany}
+        mutualConnections={introMutualConnections}
         open={introOpen}
         onOpenChange={setIntroOpen}
       />
