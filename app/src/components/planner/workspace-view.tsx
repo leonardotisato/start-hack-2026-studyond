@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ThesisGpsView } from "@/components/thesis-gps/thesis-gps-view";
 import { CalendarView } from "@/components/planner/calendar-view";
 import { MilestoneTracker } from "@/components/planner/milestone-tracker";
@@ -348,18 +347,13 @@ export function WorkspaceView({
       />
 
       {/* Calendar */}
-      <Tabs defaultValue="calendar">
-        <TabsList>
-          <TabsTrigger value="calendar">Calendar</TabsTrigger>
-        </TabsList>
-        <TabsContent value="calendar" className="mt-4">
-          <CalendarView
-            events={allEvents}
-            onEventsChange={setManualEvents}
-            graphEventIds={new Set(graphEvents.map((e) => e.id))}
-          />
-        </TabsContent>
-      </Tabs>
+      <div className="rounded-xl border bg-card p-4 shadow-sm">
+        <CalendarView
+          events={allEvents}
+          onEventsChange={setManualEvents}
+          graphEventIds={new Set(graphEvents.map((e) => e.id))}
+        />
+      </div>
 
       <MilestoneTracker
         nodes={sortedNodes}
