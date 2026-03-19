@@ -243,10 +243,10 @@ export function GpsChatPanel({
 /* ------------------------------------------------------------------ */
 
 const TYPE_ICONS: Record<string, { icon: string; color: string }> = {
-  supervisor: { icon: "🎓", color: "border-blue-300 bg-blue-50" },
-  expert: { icon: "💼", color: "border-indigo-300 bg-indigo-50" },
-  company: { icon: "🏢", color: "border-green-300 bg-green-50" },
-  topic: { icon: "📄", color: "border-violet-300 bg-violet-50" },
+  supervisor: { icon: "🎓", color: "border-fuchsia-300 bg-fuchsia-50" },
+  expert: { icon: "💼", color: "border-violet-300 bg-violet-50" },
+  company: { icon: "🏢", color: "border-rose-300 bg-rose-50" },
+  topic: { icon: "📄", color: "border-cyan-300 bg-cyan-50" },
   university: { icon: "🏛️", color: "border-amber-300 bg-amber-50" },
   program: { icon: "📚", color: "border-teal-300 bg-teal-50" },
 };
