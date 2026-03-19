@@ -311,6 +311,21 @@ function ThesisGpsViewInner({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes.length > 0]);
 
+  // Re-focus on active node when switching back to graph view
+  useEffect(() => {
+    if (activeView !== "graph" || nodes.length === 0) return;
+    const activeIds = computedNodes
+      .filter((n) => n.state === "active")
+      .map((n) => n.id);
+    const focusNodes = activeIds.length > 0
+      ? nodes.filter((n) => activeIds.includes(n.id))
+      : nodes;
+    setTimeout(() => {
+      fitView({ nodes: focusNodes, padding: 0.5, maxZoom: 1.0, duration: 400 });
+    }, 50);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView]);
+
   // Selected node with computed state
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
