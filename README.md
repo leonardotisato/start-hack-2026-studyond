@@ -1,3 +1,6 @@
+### Test it yourself [here](https://start-hack-2026-studyond.vercel.app/planner)!! 
+(to reset the environmnent, simply close the page and open it again)
+
 # 🧭 Thesis GPS
 
 > **A shared, living roadmap for every thesis — navigated by AI, owned by everyone on the journey.**
